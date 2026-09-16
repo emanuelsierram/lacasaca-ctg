@@ -16,7 +16,7 @@ Sync Impact Report
 ### I. Catálogo Exclusivo de Fútbol
 
 El sistema DEBE administrar exclusivamente camisetas de fútbol. Una camiseta es
-un producto y cada combinación comercializable de talla, versión, temporada,
+un producto y cada combinación comercializable de talla, versión, long sleeves,
 jugador u otro atributo del catálogo DEBE ser una variante independiente con un
 identificador único. Un producto o variante inactiva NO PUEDE agregarse a nuevos
 carritos ni utilizarse para crear pedidos.

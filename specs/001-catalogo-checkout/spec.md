@@ -7,6 +7,24 @@
 **Status**: Draft
 
 **Input**: User description: "Especificacion del producto para un e-commerce de camisetas de futbol con catalogo, busqueda, variantes, carrito, autenticacion, checkout, pagos manuales, pedidos, estados y administracion."
+## Clarifications
+
+### Session 2026-09-15
+
+- Q: ¿En qué estados debe permitirse cancelar un pedido? → A: `PENDIENTE` y `EN_PREPARACION`
+- Q: ¿Quién puede confirmar manualmente una transferencia recibida por WhatsApp? → A: Solo administradores autorizados
+- Q: ¿Quién puede avanzar un pedido entre `PENDIENTE`, `EN_PREPARACION`, `ENVIADO` y `ENTREGADO`? → A: Solo administradores autorizados
+- Q: ¿Cuándo debe descontarse el inventario en los pedidos con pago manual pendiente? → A: Al crear el pedido, con reintegro si falla o expira el pago
+- Q: ¿Cuánto tiempo debe permanecer reservado el inventario antes de que expire un pago manual pendiente? → A: 24 horas
+
+La cancelacion solo esta permitida en los estados `PENDIENTE` y `EN_PREPARACION`; los
+pedidos en `ENVIADO` o `ENTREGADO` no pueden cancelarse mediante la operacion normal.
+Las transferencias via WhatsApp solo pueden confirmarse manualmente por administradores
+autorizados.
+Solo administradores autorizados pueden avanzar un pedido entre `PENDIENTE`,
+`EN_PREPARACION`, `ENVIADO` y `ENTREGADO`.
+Los pedidos con pago manual pendiente descuentan el inventario al crearse y lo reintegran
+si el pago falla o expira despues de 24 horas.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -36,7 +54,7 @@ variante, agregarla al carrito, confirmar el checkout y consultar el pedido crea
 
 ---
 
-### User Story 2 - Encontrar productos y revisar disponibilidad (Priority: P1)
+### User Story 2 - Encontrar productos y revisar stock (Priority: P1)
 
 Como comprador, quiero navegar, buscar y filtrar camisetas para identificar rapidamente
 los productos y variantes que puedo comprar.
@@ -148,6 +166,8 @@ reintegra cuando corresponde.
   total a partir de los conceptos validos.
 - Si un pago manual es rechazado, incompleto o ya fue procesado, el pedido no se marca como
   pagado ni se procesa dos veces.
+- Si un pago manual falla o expira despues de crear el pedido, el sistema reintegra el
+  inventario reservado despues de 24 horas sin dejar stock negativo ni un pedido pagado.
 - El pago contraentrega solo se ofrece para productos con disponibilidad inmediata y requiere un
   numero de telefono.
 - Si una operacion critica falla durante la confirmacion, no debe quedar un pedido
@@ -160,13 +180,13 @@ reintegra cuando corresponde.
 - **FR-001**: El sistema DEBE mostrar un catalogo exclusivamente de camisetas de futbol
   disponibles o previamente publicadas, organizado por categorias como retros, actuales,
   selecciones, femenino y ninos.
-- **FR-002**: Cada producto DEBE mostrar nombre, imagen, precio, descripcion y disponibilidad.
+- **FR-002**: Cada producto DEBE mostrar nombre, imagen, precio, descripcion y disponibilidad (pedido o inmediata).
 - **FR-003**: El sistema DEBE permitir navegar por el catalogo, filtrar por categoria y
   buscar por nombre.
 - **FR-004**: Una busqueda sin resultados DEBE mostrar un mensaje indicando que no se
   encontraron productos.
 - **FR-005**: El detalle de un producto DEBE mostrar nombre, imagenes, precio, descripcion,
-  variantes y disponibilidad.
+  variantes y disponibilidad (pedido o inmediata).
 - **FR-006**: Cada combinacion comercializable DEBE gestionarse como una variante con
   identificador e inventario propios.
 - **FR-007**: Las variantes sin inventario DEBEN identificarse como agotadas y no pueden
@@ -182,7 +202,7 @@ reintegra cuando corresponde.
 - **FR-012**: El sistema DEBE recalcular subtotales y total del carrito despues de cada
   modificacion.
 - **FR-013**: Agregar un producto al carrito NO DEBE reservar inventario; el checkout DEBE
-  volver a validar todas las variantes antes de confirmar.
+  volver a validar todas las variantes antes de crear el pedido y reservar su inventario.
 - **FR-014**: El sistema DEBE permitir registrarse con correo y contrasena, iniciar y
   cerrar sesion, y exigir que cada correo sea unico.
 - **FR-015**: Las credenciales DEBEN manejarse de forma segura y las contrasenas NO PUEDEN
@@ -194,15 +214,17 @@ reintegra cuando corresponde.
 - **FR-018**: El total del pedido DEBE calcularse a partir de cantidades, precios, descuentos,
   envio y demas conceptos aplicables; el cliente NO PUEDE proporcionar ni modificar el
   total final.
-- **FR-019**: La confirmacion DEBE descontar el inventario de forma atomica y consistente,
-  impidiendo sobreventa en operaciones concurrentes.
+- **FR-019**: La creacion del pedido DEBE descontar y reservar el inventario de forma
+  atomica y consistente, impidiendo sobreventa en operaciones concurrentes. Si el pago
+  manual falla o expira, el sistema DEBE reintegrar el inventario reservado.
 - **FR-020**: Cada pedido DEBE tener un identificador unico y conservar como historicos los
   precios unitarios, variantes y cantidades usados en la compra.
 - **FR-021**: El checkout DEBE permitir seleccionar Contraentrega o transferencia via
   WhatsApp, sin integrar una pasarela de pagos.
 - **FR-022**: El pedido NO DEBE marcarse como pagado hasta recibir una confirmacion valida
   del metodo seleccionado; un pago fallido o rechazado NO PUEDE confirmar el pedido.
-- **FR-023**: El sistema DEBE asociar el resultado de pago al pedido y evitar procesar mas
+- **FR-023**: El sistema DEBE asociar el resultado de pago al pedido, permitir que solo
+  administradores autorizados confirmen transferencias via WhatsApp y evitar procesar mas
   de una vez la misma confirmacion.
 - **FR-024**: Contraentrega DEBE requerir un numero de telefono y solo estar disponible
   para productos con disponibilidad inmediata.
@@ -211,7 +233,9 @@ reintegra cuando corresponde.
   total, estado del pedido y estado del pago.
 - **FR-026**: Un usuario autenticado NO PUEDE consultar pedidos pertenecientes a otra cuenta.
 - **FR-027**: Los estados permitidos DEBEN ser `PENDIENTE`, `EN_PREPARACION`, `ENVIADO`,
-  `ENTREGADO` y `CANCELADO`, con transiciones definidas y sin cambios arbitrarios.
+  `ENTREGADO` y `CANCELADO`, con transiciones definidas y sin cambios arbitrarios. La
+  cancelacion solo puede solicitarse desde `PENDIENTE` o `EN_PREPARACION`, y solo los
+  administradores autorizados pueden avanzar pedidos entre estados operativos.
 - **FR-028**: Un pedido cancelado NO PUEDE volver a procesarse como venta activa y un pedido
   entregado NO PUEDE volver a un estado anterior mediante una operacion normal.
 - **FR-029**: Los administradores autorizados DEBEN poder crear, actualizar y desactivar
@@ -219,7 +243,7 @@ reintegra cuando corresponde.
 - **FR-030**: Las operaciones administrativas DEBEN requerir permisos suficientes y no deben
   alterar productos, variantes, cantidades ni precios historicos de pedidos existentes.
 - **FR-031**: El sistema DEBE proporcionar navegacion clara entre catalogo, detalle, carrito,
-  checkout y pedidos, junto con mensajes comprensibles para errores de disponibilidad,
+  checkout y pedidos, junto con mensajes comprensibles para errores de stock,
   inventario, autenticacion y pago.
 - **FR-032**: La interfaz DEBE impedir acciones que el backend rechaza, sin sustituir las
   validaciones del backend como fuente de verdad.
@@ -230,9 +254,9 @@ reintegra cuando corresponde.
 ### Key Entities *(include if feature involves data)*
 
 - **Producto**: Camiseta de futbol publicada en el catalogo, con nombre, imagenes,
-  descripcion, categoria y estado de actividad.
-- **Variante**: Combinacion comercializable de un producto, con identificador, atributos,
-  precio, stock, disponibilidad y estado propio.
+  descripcion, categoria, disponibilidad (pedido o inmediata) y estado de actividad.
+- **Variante**: Combinacion comercializable de un producto, con identificador, atributos (talla, versión, long sleeves, jugador),
+  precio, stock, disponibilidad (pedido o inmediata) y estado propio.
 - **Categoria**: Clasificacion de camisetas, incluyendo retros, actuales, selecciones,
   femenino y ninos.
 - **Usuario**: Persona con correo unico y credenciales seguras, cuando decide crear una
@@ -277,7 +301,10 @@ reintegra cuando corresponde.
 - Los metodos de pago son exclusivamente Contraentrega y transferencia via WhatsApp; no se
   construira ni conectara una pasarela de pagos.
 - La confirmacion de transferencia via WhatsApp se registra como confirmacion manual valida
-  del negocio y debe poder identificarse para evitar duplicados.
+  del negocio realizada por un administrador autorizado y debe poder identificarse para
+  evitar duplicados.
+- El inventario de un pedido con pago manual pendiente se reserva durante 24 horas; si el
+  pago no se confirma en ese plazo, la reserva se libera.
 - La entrega inmediata se determina por la disponibilidad configurada del producto o sus
   variantes y es requisito para Contraentrega.
 - El numero de telefono usado para Contraentrega debe ser unico entre pedidos activos que
