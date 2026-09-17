@@ -66,7 +66,7 @@ type Order = {
   userId: string | null;
   status: 'PENDIENTE' | 'EN_PREPARACION' | 'ENVIADO' | 'ENTREGADO' | 'CANCELADO';
   paymentMethod: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
-  paymentStatus: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
+  paymentStatus: 'PENDIENTE' | 'CONFIRMADO' | 'RECHAZADO' | 'EXPIRADO' | 'CANCELADO';
   total: number;
   shippingCost: number;
   items: OrderItem[];
@@ -167,21 +167,26 @@ async function syncCatalogToDatabase() {
 async function syncUsersToDatabase() {
   for (const user of users) {
     await pool.query(
-      `INSERT INTO users (legacy_id, name, email, password_hash, role, is_active)
-       VALUES ($1, $2, $3, $4, $5::user_role, true)
+      `INSERT INTO users (legacy_id, name, email, address, password_hash, role, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6::user_role, true)
        ON CONFLICT (legacy_id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email,
-         password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, is_active = true`,
-      [user.id, user.name, user.email, user.passwordHash, user.role]
+         address = EXCLUDED.address, password_hash = EXCLUDED.password_hash,
+         role = EXCLUDED.role, is_active = true`,
+      [user.id, user.name, user.email, user.address ?? '', user.passwordHash, user.role]
     );
   }
 }
 
 async function findUserByEmail(email: string) {
-  const result = await pool.query<{ id: string; name: string; email: string; passwordHash: string; role: 'CUSTOMER' | 'ADMIN' }>(
-    'SELECT legacy_id AS id, name, email, password_hash AS "passwordHash", role FROM users WHERE lower(email) = lower($1) AND is_active = true',
+  const result = await pool.query<{ id: string; name: string; email: string; address: string; passwordHash: string; role: 'CUSTOMER' | 'ADMIN' }>(
+    'SELECT legacy_id AS id, name, email, address, password_hash AS "passwordHash", role FROM users WHERE lower(email) = lower($1) AND is_active = true',
     [email.trim()]
   );
   return result.rows[0] ?? null;
+}
+
+async function updateUserAddress(userLegacyId: string, address: string) {
+  await pool.query('UPDATE users SET address = $1 WHERE legacy_id = $2', [address.trim(), userLegacyId]);
 }
 
 async function listCatalogFromDatabase() {
@@ -260,8 +265,9 @@ const checkoutSchema = z.object({
   customer: z.object({
     name: z.string().min(1),
     email: z.string().email(),
-    phone: z.string().min(6).optional()
-  }).default({ name: 'Guest', email: 'guest@example.com' })
+    phone: z.string().trim().min(6, 'Phone is required'),
+    address: z.string().trim().min(5, 'Address is required')
+  }).default({ name: 'Guest', email: 'guest@example.com', phone: '', address: '' })
 });
 
 const authRegisterSchema = z.object({
@@ -362,21 +368,24 @@ app.post('/api/checkout', async (req: Request, res: Response) => {
 
   const cartId = (req.headers['x-cart-id'] as string) || 'guest-cart';
   let userId = (req.headers['x-user-id'] as string | undefined) ?? null;
-  let createdGuestAccount: { id: string; name: string; email: string; role: 'CUSTOMER' } | undefined;
+  let createdGuestAccount: { id: string; name: string; email: string; address: string; role: 'CUSTOMER' } | undefined;
   if (!userId && parsed.data.guestCheckout) {
     if (await findUserByEmail(parsed.data.customer.email)) {
       return res.status(409).json({ message: 'Este email ya tiene una cuenta. Inicia sesión para asociar el pedido.' });
     }
-    createdGuestAccount = userService.createGuestUser(users, {
+    const guestAccount = userService.createGuestUser(users, {
       name: parsed.data.customer.name,
       email: parsed.data.customer.email
     });
-    userId = createdGuestAccount.id;
+    guestAccount.address = parsed.data.customer.address;
+    createdGuestAccount = guestAccount;
+    userId = guestAccount.id;
     await syncUsersToDatabase();
     await persistState();
   }
   try {
-    const result = await createDbOrder(cartId, parsed.data.paymentMethod, userId);
+    await updateUserAddress(userId as string, parsed.data.customer.address);
+    const result = await createDbOrder(cartId, parsed.data.paymentMethod, userId, parsed.data.customer.phone ?? null);
     return res.status(201).json({ ...result, account: createdGuestAccount });
   } catch (error) {
     return res.status(422).json({ message: error instanceof Error ? error.message : 'Unable to create order' });
@@ -398,6 +407,7 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      address: user.address,
       role: user.role
     });
   } catch (error) {
@@ -413,7 +423,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 
   const match = await findUserByEmail(parsed.data.email);
   const session = match && userService.verifyPassword(parsed.data.password, match.passwordHash)
-    ? { id: match.id, name: match.name, email: match.email, role: match.role }
+    ? { id: match.id, name: match.name, email: match.email, address: match.address, role: match.role }
     : null;
   if (!session) {
     return res.status(401).json({ message: 'Invalid email or password' });
@@ -423,6 +433,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     id: session.id,
     name: session.name,
     email: session.email,
+    address: session.address,
     role: session.role
   });
 });
@@ -496,6 +507,9 @@ app.get('/api/orders/:id', async (req: Request, res: Response) => {
     id: order.id,
     status: order.status,
     paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    subtotal: order.subtotal,
+    shippingCost: order.shippingCost,
     items: order.items,
     total: order.total,
     createdAt: order.createdAt

@@ -9,7 +9,7 @@ test('order lifecycle blocks invalid transitions and allows cancellation only in
     id: 'order-a',
     userId: 'user-a',
     status: 'PENDIENTE',
-    paymentStatus: 'PENDING',
+    paymentStatus: 'PENDIENTE',
     total: 119.99,
     createdAt: '2026-09-01T00:00:00Z'
   };
@@ -26,7 +26,7 @@ test('payment confirmation rejects duplicate confirmations and restores inventor
     id: 'order-b',
     userId: 'user-b',
     status: 'PENDIENTE',
-    paymentStatus: 'PENDING',
+    paymentStatus: 'PENDIENTE',
     total: 89,
     items: [{ variantId: 'var-9', quantity: 2 }],
     createdAt: '2026-09-01T00:00:00Z'
@@ -35,8 +35,8 @@ test('payment confirmation rejects duplicate confirmations and restores inventor
   assert.equal(paymentService.confirmManualPayment(order as any, 'admin-1'), true);
   assert.equal(paymentService.confirmManualPayment(order as any, 'admin-1'), false);
 
-  order.paymentStatus = 'PENDING';
+  order.paymentStatus = 'PENDIENTE';
   const restored = paymentService.expireManualPayment(order as any, inventory as any);
   assert.equal(restored['var-9'], 4);
-  assert.equal(order.paymentStatus, 'EXPIRED');
+  assert.equal(order.paymentStatus, 'EXPIRADO');
 });

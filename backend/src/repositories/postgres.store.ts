@@ -79,7 +79,7 @@ export async function removeDbCartItem(cartLegacyId: string, itemLegacyId: strin
   );
 }
 
-export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER', userLegacyId: string | null) {
+export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER', userLegacyId: string | null, customerPhone: string | null) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -102,9 +102,9 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
     const shipping = subtotal > 0 ? 9.99 : 0;
     const orderLegacyId = `order-${Date.now()}`;
     const order = await client.query<{ id: string }>(
-      `INSERT INTO orders (legacy_id, user_id, status, payment_method, payment_status, total, shipping_cost)
-       VALUES ($1, (SELECT id FROM users WHERE legacy_id = $2), 'PENDIENTE', $3::payment_method, 'PENDING', $4, $5) RETURNING id`,
-      [orderLegacyId, userLegacyId, paymentMethod, subtotal + shipping, shipping]
+      `INSERT INTO orders (legacy_id, user_id, customer_phone, status, payment_method, payment_status, total, shipping_cost)
+      VALUES ($1, (SELECT id FROM users WHERE legacy_id = $2), $3, 'PENDIENTE', $4::payment_method, 'PENDIENTE', $5, $6) RETURNING id`,
+      [orderLegacyId, userLegacyId, customerPhone, paymentMethod, subtotal + shipping, shipping]
     );
     for (const item of cart.rows) {
       await client.query(
@@ -113,10 +113,10 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
         [order.rows[0].id, item.variantUuid, item.productUuid, item.quantity, item.price]
       );
     }
-    await client.query('INSERT INTO payments (legacy_id, order_id, method, status) VALUES ($1, $2, $3::payment_method, \'PENDING\')', [orderLegacyId, order.rows[0].id, paymentMethod]);
+    await client.query('INSERT INTO payments (legacy_id, order_id, method, status) VALUES ($1, $2, $3::payment_method, \'PENDIENTE\')', [orderLegacyId, order.rows[0].id, paymentMethod]);
     await client.query('DELETE FROM cart_items WHERE cart_id = (SELECT id FROM carts WHERE legacy_id = $1)', [cartLegacyId]);
     await client.query('COMMIT');
-    return { orderId: orderLegacyId, status: 'PENDIENTE', paymentStatus: 'PENDING', total: subtotal + shipping };
+    return { orderId: orderLegacyId, status: 'PENDIENTE', paymentStatus: 'PENDIENTE', paymentMethod, subtotal, shippingCost: shipping, total: Number((subtotal + shipping).toFixed(2)) };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -127,17 +127,19 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
 
 export async function listDbOrders(userLegacyId: string) {
   const result = await pool.query(
-    `SELECT o.legacy_id AS id, o.status, o.total, o.created_at AS "createdAt"
+     `SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
+       o.total, o.shipping_cost AS "shippingCost", o.created_at AS "createdAt"
      FROM orders o LEFT JOIN users u ON u.id = o.user_id
      WHERE u.legacy_id = $1 ORDER BY o.created_at DESC`,
     [userLegacyId]
   );
-  return result.rows.map((order) => ({ ...order, total: Number(order.total) }));
+  return result.rows.map((order) => ({ ...order, total: Number(order.total), shippingCost: Number(order.shippingCost), subtotal: Number(order.total) - Number(order.shippingCost) }));
 }
 
 export async function getDbOrder(orderLegacyId: string, userLegacyId: string) {
   const order = await pool.query(
-    `SELECT o.legacy_id AS id, o.status, o.payment_status AS "paymentStatus", o.total,
+     `SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
+       o.total, o.shipping_cost AS "shippingCost",
        o.created_at AS "createdAt"
      FROM orders o LEFT JOIN users u ON u.id = o.user_id
      WHERE o.legacy_id = $1 AND u.legacy_id = $2`,
@@ -150,7 +152,7 @@ export async function getDbOrder(orderLegacyId: string, userLegacyId: string) {
      WHERE o.legacy_id = $1 ORDER BY oi.created_at`,
     [orderLegacyId]
   );
-  return { ...order.rows[0], total: Number(order.rows[0].total), items: items.rows.map((item) => ({ ...item, unitPriceSnapshot: Number(item.unitPriceSnapshot), subtotal: Number(item.subtotal) })) };
+  return { ...order.rows[0], total: Number(order.rows[0].total), shippingCost: Number(order.rows[0].shippingCost), subtotal: Number(order.rows[0].total) - Number(order.rows[0].shippingCost), items: items.rows.map((item) => ({ ...item, unitPriceSnapshot: Number(item.unitPriceSnapshot), subtotal: Number(item.subtotal) })) };
 }
 
 export async function cancelDbOrder(orderLegacyId: string, userLegacyId: string) {
@@ -166,8 +168,8 @@ export async function cancelDbOrder(orderLegacyId: string, userLegacyId: string)
     if (!['PENDIENTE', 'EN_PREPARACION'].includes(order.rows[0].status)) throw new Error('Order cannot be cancelled in its current state');
     const items = await client.query<{ variantId: string; quantity: number }>('SELECT variant_id AS "variantId", quantity FROM order_items WHERE order_id = $1', [order.rows[0].id]);
     for (const item of items.rows) await client.query('UPDATE variants SET stock = stock + $1, updated_at = now() WHERE id = $2', [item.quantity, item.variantId]);
-    await client.query("UPDATE orders SET status = 'CANCELADO', payment_status = 'CANCELLED', updated_at = now() WHERE id = $1", [order.rows[0].id]);
-    await client.query("UPDATE payments SET status = 'CANCELLED' WHERE order_id = $1", [order.rows[0].id]);
+    await client.query("UPDATE orders SET status = 'CANCELADO', payment_status = 'CANCELADO', updated_at = now() WHERE id = $1", [order.rows[0].id]);
+    await client.query("UPDATE payments SET status = 'CANCELADO' WHERE order_id = $1", [order.rows[0].id]);
     await client.query('COMMIT');
     return { orderId: orderLegacyId, status: 'CANCELADO', inventoryReintegrated: true };
   } catch (error) {
@@ -179,10 +181,10 @@ export async function cancelDbOrder(orderLegacyId: string, userLegacyId: string)
 }
 
 export async function confirmDbPayment(orderLegacyId: string) {
-  const result = await pool.query("UPDATE payments SET status = 'CONFIRMED', confirmed_at = now() WHERE legacy_id = $1 AND status = 'PENDING' RETURNING order_id", [orderLegacyId]);
+  const result = await pool.query("UPDATE payments SET status = 'CONFIRMADO', confirmed_at = now() WHERE legacy_id = $1 AND status = 'PENDIENTE' RETURNING order_id", [orderLegacyId]);
   if (!result.rowCount) throw new Error('Payment already confirmed or not found');
-  await pool.query("UPDATE orders SET payment_status = 'CONFIRMED', updated_at = now() WHERE id = $1", [result.rows[0].order_id]);
-  return { paymentStatus: 'CONFIRMED', orderStatus: 'PENDIENTE' };
+  await pool.query("UPDATE orders SET payment_status = 'CONFIRMADO', updated_at = now() WHERE id = $1", [result.rows[0].order_id]);
+  return { paymentStatus: 'CONFIRMADO', orderStatus: 'PENDIENTE' };
 }
 
 export async function advanceDbOrderStatus(orderLegacyId: string, nextStatus: string) {

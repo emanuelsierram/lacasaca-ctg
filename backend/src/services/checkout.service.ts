@@ -37,7 +37,7 @@ export const checkoutService = {
       id: `order-${Date.now()}`,
       status: 'PENDIENTE' as const,
       paymentMethod: input.paymentMethod,
-      paymentStatus: 'PENDING' as const,
+      paymentStatus: 'PENDIENTE' as const,
       total: pricingService.toMoney(totalBeforeShipping + shippingCost),
       items
     };

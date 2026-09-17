@@ -4,6 +4,7 @@ export type UserRecord = {
   id: string;
   name: string;
   email: string;
+  address: string;
   passwordHash: string;
   role: 'CUSTOMER' | 'ADMIN';
 };
@@ -38,6 +39,7 @@ export const userService = {
       id: `user-${Date.now()}`,
       name: input.name.trim(),
       email: normalizedEmail,
+      address: '',
       passwordHash: this.hashPassword(input.password),
       role: 'CUSTOMER'
     };
@@ -84,10 +86,11 @@ export const userService = {
       id: `user-${Date.now()}-${randomBytes(4).toString('hex')}`,
       name: input.name.trim(),
       email: normalizedEmail,
+      address: '',
       passwordHash: this.hashPassword(internalPassword),
       role: 'CUSTOMER'
     };
     users.push(user);
-    return { id: user.id, name: user.name, email: user.email, role: 'CUSTOMER' as const };
+    return { id: user.id, name: user.name, email: user.email, address: user.address, role: 'CUSTOMER' as const };
   }
 };

@@ -157,7 +157,7 @@ Response 201:
 {
   "orderId": "uuid",
   "status": "PENDIENTE",
-  "paymentStatus": "PENDING",
+  "paymentStatus": "PENDIENTE",
   "total": 189.99
 }
 ```
@@ -170,7 +170,7 @@ Response 200:
 {
   "id": "uuid",
   "status": "PENDIENTE",
-  "paymentStatus": "PENDING",
+  "paymentStatus": "PENDIENTE",
   "items": [
     {
       "variantId": "uuid",
@@ -228,7 +228,7 @@ Validation:
 Response 200:
 ```json
 {
-  "paymentStatus": "CONFIRMED",
+  "paymentStatus": "CONFIRMADO",
   "orderStatus": "PENDIENTE"
 }
 ```

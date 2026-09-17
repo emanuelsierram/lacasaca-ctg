@@ -34,7 +34,7 @@ export type CartItem = {
 };
 
 export type Cart = { id: string; items: CartItem[]; total: number };
-export type Session = { id: string; name: string; email: string; role: 'CUSTOMER' | 'ADMIN' };
+export type Session = { id: string; name: string; email: string; address?: string; role: 'CUSTOMER' | 'ADMIN' };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
@@ -73,8 +73,8 @@ export const api = {
     return request<CartItem>(`/cart/items/${id}`, { method: 'PATCH', body: JSON.stringify({ quantity }) });
   },
   removeCartItem(id: string) { return request<void>(`/cart/items/${id}`, { method: 'DELETE' }); },
-  checkout(payload: { paymentMethod: PaymentMethod; customer: { name: string; email: string; phone?: string }; guestCheckout: boolean }) {
-    return request<{ orderId: string; status: string; paymentStatus: string; total: number; account?: Session }>('/checkout', { method: 'POST', body: JSON.stringify(payload) });
+  checkout(payload: { paymentMethod: PaymentMethod; customer: { name: string; email: string; phone?: string; address: string }; guestCheckout: boolean }) {
+    return request<{ orderId: string; status: string; paymentStatus: string; paymentMethod: PaymentMethod; subtotal: number; shippingCost: number; total: number; account?: Session }>('/checkout', { method: 'POST', body: JSON.stringify(payload) });
   },
   register(payload: { name: string; email: string; password: string }) {
     return request<Session>('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
@@ -88,8 +88,8 @@ export const api = {
   confirmPasswordReset(token: string, password: string) {
     return request<{ message: string }>('/auth/password-reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) });
   },
-  listOrders() { return request<{ items: Array<{ id: string; status: string; total: number; createdAt: string }> }>('/orders/me'); },
-  getOrder(id: string) { return request<{ id: string; status: string; paymentStatus: string; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },
+  listOrders() { return request<{ items: Array<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string }> }>('/orders/me'); },
+  getOrder(id: string) { return request<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },
   cancelOrder(id: string) { return request<{ orderId: string; status: string }>('/orders/' + id + '/cancel', { method: 'POST' }); }
   ,adminProducts() { return request<{ items: Product[] }>('/admin/catalog/products'); }
   ,updateAdminVariant(id: string, payload: { price?: number; stock?: number; isActive?: boolean }) { return request<Variant>(`/admin/catalog/variants/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }

@@ -7,6 +7,7 @@ import { ProductDetailPage } from './app/product/page';
 import { CartView } from './cart';
 import { CheckoutView } from './checkout';
 import { OrdersPage } from './app/orders/page';
+import { OrderSuccessPage } from './app/order-success/page';
 import { api, type Cart, type Session } from './api';
 import './styles.css';
 
@@ -27,10 +28,13 @@ const App = () => {
 
   const navigate = (next: string) => { window.location.hash = next; };
   const refreshCart = () => api.getCart().then(setCart);
-  const onAuth = (next: Session) => {
+  const saveSession = (next: Session) => {
     setSession(next);
     localStorage.setItem('lacasaca-session', JSON.stringify(next));
     localStorage.setItem('lacasaca-user-id', next.id);
+  };
+  const onAuth = (next: Session) => {
+    saveSession(next);
     navigate('orders');
   };
   const logout = () => {
@@ -58,9 +62,10 @@ const App = () => {
       {route === 'catalog' && <CatalogPage onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
-      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account) => { if (account) onAuth(account); navigate(`order/${id}`); }} />}
+      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account) => { if (account) saveSession(account); navigate(`order-success/${id}`); }} />}
       {route === 'auth' && <AuthPage onAuthenticated={onAuth} />}
       {route === 'orders' && <OrdersPage />}
+      {route.startsWith('order-success/') && <OrderSuccessPage orderId={route.split('/')[1]} onOrders={() => navigate('orders')} />}
       {route.startsWith('order/') && <OrdersPage selectedId={route.split('/')[1]} />}
       {route === 'admin' && <AdminPage />}
     </main>

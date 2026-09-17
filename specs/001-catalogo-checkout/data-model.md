@@ -91,7 +91,7 @@ Validation rules:
 - userId: UUID | null
 - status: enum { PENDIENTE, EN_PREPARACION, ENVIADO, ENTREGADO, CANCELADO }
 - paymentMethod: enum { CASH_ON_DELIVERY, WHATSAPP_TRANSFER }
-- paymentStatus: enum { PENDING, CONFIRMED, REJECTED, EXPIRED, CANCELLED }
+- paymentStatus: enum { PENDIENTE, CONFIRMADO, RECHAZADO, EXPIRADO, CANCELADO }
 - total: decimal(12,2)
 - shippingCost: decimal(12,2)
 - notes: text
@@ -100,7 +100,7 @@ Validation rules:
 
 Validation rules:
 - total > 0.
-- paymentStatus no puede ser CONFIRMED antes de confirmacion valida.
+- paymentStatus no puede ser CONFIRMADO antes de confirmacion valida.
 - status transiciones deben seguir la secuencia definida.
 - un pedido invitado es valido sin autenticacion previa.
 
@@ -123,7 +123,7 @@ Validation rules:
 - orderId: UUID
 - method: enum { CASH_ON_DELIVERY, WHATSAPP_TRANSFER }
 - externalReference: string | null
-- status: enum { PENDING, CONFIRMED, REJECTED, EXPIRED, CANCELLED }
+- status: enum { PENDIENTE, CONFIRMADO, RECHAZADO, EXPIRADO, CANCELADO }
 - confirmationByUserId: UUID | null
 - confirmedAt: timestamp | null
 - createdAt: timestamp
