@@ -58,7 +58,7 @@ const App = () => {
       {route === 'catalog' && <CatalogPage onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
-      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id) => navigate(`order/${id}`)} />}
+      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account) => { if (account) onAuth(account); navigate(`order/${id}`); }} />}
       {route === 'auth' && <AuthPage onAuthenticated={onAuth} />}
       {route === 'orders' && <OrdersPage />}
       {route.startsWith('order/') && <OrdersPage selectedId={route.split('/')[1]} />}

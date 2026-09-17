@@ -2,7 +2,7 @@
   "name": "@lacasaca/db",
   "private": true,
   "scripts": {
-    "migrate": "node -e \"console.log('No migrations configured yet. Add PostgreSQL migration scripts here.')\"",
-    "seed:demo": "node -e \"console.log('Seed script placeholder for demo catalog data.')\""
+    "migrate": "node scripts/migrate.js",
+    "seed:demo": "node -e \"console.log('Demo data is initialized by the backend on first start.')\""
   }
 }

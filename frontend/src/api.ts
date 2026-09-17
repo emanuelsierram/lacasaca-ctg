@@ -74,13 +74,19 @@ export const api = {
   },
   removeCartItem(id: string) { return request<void>(`/cart/items/${id}`, { method: 'DELETE' }); },
   checkout(payload: { paymentMethod: PaymentMethod; customer: { name: string; email: string; phone?: string }; guestCheckout: boolean }) {
-    return request<{ orderId: string; status: string; paymentStatus: string; total: number }>('/checkout', { method: 'POST', body: JSON.stringify(payload) });
+    return request<{ orderId: string; status: string; paymentStatus: string; total: number; account?: Session }>('/checkout', { method: 'POST', body: JSON.stringify(payload) });
   },
   register(payload: { name: string; email: string; password: string }) {
     return request<Session>('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
   },
   login(payload: { email: string; password: string }) {
     return request<Session>('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+  },
+  requestPasswordReset(email: string) {
+    return request<{ message: string; resetToken?: string }>('/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+  },
+  confirmPasswordReset(token: string, password: string) {
+    return request<{ message: string }>('/auth/password-reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) });
   },
   listOrders() { return request<{ items: Array<{ id: string; status: string; total: number; createdAt: string }> }>('/orders/me'); },
   getOrder(id: string) { return request<{ id: string; status: string; paymentStatus: string; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },

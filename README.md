@@ -19,8 +19,13 @@ Backend:
 
 ```bash
 cd backend
+npm install
 npm run dev
 ```
+
+Antes de iniciar el backend, configura PostgreSQL. Copia `backend/.env.example` como
+`backend/.env` y ajusta `PGPASSWORD` o `DATABASE_URL` con las credenciales de tu servidor.
+La base `lacasaca` debe existir en PostgreSQL; el backend crea la tabla `app_state` al iniciar.
 
 Frontend:
 

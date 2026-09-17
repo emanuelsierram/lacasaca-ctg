@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 export type UserRecord = {
   id: string;
   name: string;
@@ -67,5 +69,25 @@ export const userService = {
 
   verifyPassword(password: string, passwordHash: string) {
     return passwordHash === this.hashPassword(password);
+  },
+
+  createGuestUser(users: UserRecord[], input: { name: string; email: string }) {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    if (!normalizedEmail || !input.name.trim()) {
+      throw new Error('Name and email are required');
+    }
+    if (users.some((user) => user.email.toLowerCase() === normalizedEmail)) {
+      throw new Error('User already exists');
+    }
+    const internalPassword = `${randomBytes(24).toString('base64url')}Aa1!`;
+    const user: UserRecord = {
+      id: `user-${Date.now()}-${randomBytes(4).toString('hex')}`,
+      name: input.name.trim(),
+      email: normalizedEmail,
+      passwordHash: this.hashPassword(internalPassword),
+      role: 'CUSTOMER'
+    };
+    users.push(user);
+    return { id: user.id, name: user.name, email: user.email, role: 'CUSTOMER' as const };
   }
 };

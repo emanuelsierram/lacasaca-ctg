@@ -10,9 +10,11 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@types/pg": "^8.23.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
     "express": "^4.21.2",
+    "pg": "^8.23.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
