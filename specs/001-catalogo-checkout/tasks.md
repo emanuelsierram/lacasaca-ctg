@@ -18,12 +18,12 @@
 
 **Purpose**: Initialize the project structure and shared configuration for the storefront stack.
 
-- [ ] T001 Create repository structure for the storefront: `frontend/`, `backend/`, and `db/` with initial directories and package manifests
-- [ ] T002 Initialize `backend/` with TypeScript, Express, and required runtime dependencies for API routes, validation, and database access
-- [ ] T003 [P] Initialize `frontend/` with Angular and Tailwind CSS and required app shell dependencies
-- [ ] T004 [P] Configure shared environment variables and configuration files in `backend/src/config/` and `frontend/src/environments/`
-- [ ] T005 [P] Configure linting and formatting rules for TypeScript in `backend/` and `frontend/`
-- [ ] T006 Create feature documentation index and ensure the repository references `specs/001-catalogo-checkout/` design artifacts correctly
+- [X] T001 Create repository structure for the storefront: `frontend/`, `backend/`, and `db/` with initial directories and package manifests
+- [X] T002 Initialize `backend/` with TypeScript, Express, and required runtime dependencies for API routes, validation, and database access
+- [X] T003 [P] Initialize `frontend/` with Angular and Tailwind CSS and required app shell dependencies
+- [X] T004 [P] Configure shared environment variables and configuration files in `backend/src/config/` and `frontend/src/environments/`
+- [X] T005 [P] Configure linting and formatting rules for TypeScript in `backend/` and `frontend/`
+- [X] T006 Create feature documentation index and ensure the repository references `specs/001-catalogo-checkout/` design artifacts correctly
 
 ---
 
@@ -33,14 +33,14 @@
 
 **Critical**: No user story work may begin until this phase is complete.
 
-- [ ] T007 Define shared backend domain types and enums for product categories, order states, payment methods, and payment status in `backend/src/models/domain-types.ts`
-- [ ] T008 Create PostgreSQL schema and migration scaffolding for `products`, `variants`, `categories`, `users`, `carts`, `cart_items`, `orders`, `order_items`, `payments`, and admin authorization tables in `db/migrations/`
-- [ ] T009 [P] Implement DB connection layer and repository interfaces in `backend/src/config/database.ts` and `backend/src/repositories/`
-- [ ] T010 [P] Implement centralized error handling and HTTP response mapping in `backend/src/api/error-handler.ts` and `backend/src/api/http.ts`
-- [ ] T011 Implement auth/session bootstrap and role checks for customer vs admin in `backend/src/services/auth.service.ts` and `backend/src/middleware/auth.ts`
-- [ ] T012 [P] Implement inventory validation service and stock guard logic in `backend/src/services/inventory.service.ts` using the rule: "stock de cada variante nunca puede ser negativo" and "checkout debe validar stock real y cantidades antes de crear el pedido"
-- [ ] T013 Implement pricing and order snapshot logic in `backend/src/services/pricing.service.ts` to preserve historical unit prices and recalculate totals in the backend
-- [ ] T014 Implement base API routing and middleware composition for catalog, cart, checkout, and order endpoints in `backend/src/api/routes/`
+- [X] T007 Define shared backend domain types and enums for product categories, order states, payment methods, and payment status in `backend/src/models/domain-types.ts`
+- [X] T008 Create PostgreSQL schema and migration scaffolding for `products`, `variants`, `categories`, `users`, `carts`, `cart_items`, `orders`, `order_items`, `payments`, and admin authorization tables in `db/migrations/`
+- [X] T009 [P] Implement DB connection layer and repository interfaces in `backend/src/config/database.ts` and `backend/src/repositories/`
+- [X] T010 [P] Implement centralized error handling and HTTP response mapping in `backend/src/api/error-handler.ts` and `backend/src/api/http.ts`
+- [X] T011 Implement auth/session bootstrap and role checks for customer vs admin in `backend/src/services/auth.service.ts` and `backend/src/middleware/auth.ts`
+- [X] T012 [P] Implement inventory validation service and stock guard logic in `backend/src/services/inventory.service.ts` using the rule: "stock de cada variante nunca puede ser negativo" and "checkout debe validar stock real y cantidades antes de crear el pedido"
+- [X] T013 Implement pricing and order snapshot logic in `backend/src/services/pricing.service.ts` to preserve historical unit prices and recalculate totals in the backend
+- [X] T014 Implement base API routing and middleware composition for catalog, cart, checkout, and order endpoints in `backend/src/api/routes/`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel.
 
@@ -60,13 +60,13 @@
 - [ ] T018 [US1] Implement catalog endpoints in `backend/src/api/routes/catalog.routes.ts` for `GET /api/catalog/products` and `GET /api/catalog/products/:id`
 - [ ] T019 [P] [US1] Create frontend catalog page and product cards in `frontend/src/app/catalog/` with category filter controls, search input, and product cards that show name, image, price, availability, and variant information
 - [ ] T020 [P] [US1] Create product detail page in `frontend/src/app/product/` showing images, description, variant selector, and unavailable/stock-zero states
-- [ ] T021 [US1] Implement cart domain and persistence layer in `backend/src/models/cart.model.ts`, `backend/src/models/cart-item.model.ts`, and `backend/src/repositories/cart.repository.ts`
-- [ ] T022 [US1] Implement cart service in `backend/src/services/cart.service.ts` to add, update, remove, and read cart items while validating integer quantities and active variants
-- [ ] T023 [US1] Implement cart endpoints in `backend/src/api/routes/cart.routes.ts` for `GET /api/cart`, `POST /api/cart/items`, `PATCH /api/cart/items/:id`, and `DELETE /api/cart/items/:id`
-- [ ] T024 [P] [US1] Create cart UI in `frontend/src/app/cart/` with product, variant, quantity, subtotal, and total display
-- [ ] T025 [US1] Implement checkout service in `backend/src/services/checkout.service.ts` to validate cart, recalculate totals, reserve inventory atomically, create orders, and persist `OrderItem` historical snapshots before order completion
-- [ ] T026 [US1] Implement checkout endpoint in `backend/src/api/routes/checkout.routes.ts` for `POST /api/checkout` and enforce the rule: "El total del pedido DEBE calcularse a partir de cantidades, precios, descuentos, envio y demas conceptos aplicables; el cliente NO PUEDE proporcionar ni modificar el total final"
-- [ ] T027 [P] [US1] Create checkout form in `frontend/src/app/checkout/` with payment-method selection, guest checkout flow, and validation messaging for unavailable stock and invalid quantities
+- [X] T021 [US1] Implement cart domain and persistence layer in `backend/src/models/cart.model.ts`, `backend/src/models/cart-item.model.ts`, and `backend/src/repositories/cart.repository.ts`
+- [X] T022 [US1] Implement cart service in `backend/src/services/cart.service.ts` to add, update, remove, and read cart items while validating integer quantities and active variants
+- [X] T023 [US1] Implement cart endpoints in `backend/src/api/routes/cart.routes.ts` for `GET /api/cart`, `POST /api/cart/items`, `PATCH /api/cart/items/:id`, and `DELETE /api/cart/items/:id`
+- [X] T024 [P] [US1] Create cart UI in `frontend/src/app/cart/` with product, variant, quantity, subtotal, and total display
+- [X] T025 [US1] Implement checkout service in `backend/src/services/checkout.service.ts` to validate cart, recalculate totals, reserve inventory atomically, create orders, and persist `OrderItem` historical snapshots before order completion
+- [X] T026 [US1] Implement checkout endpoint in `backend/src/api/routes/checkout.routes.ts` for `POST /api/checkout` and enforce the rule: "El total del pedido DEBE calcularse a partir de cantidades, precios, descuentos, envio y demas conceptos aplicables; el cliente NO PUEDE proporcionar ni modificar el total final"
+- [X] T027 [P] [US1] Create checkout form in `frontend/src/app/checkout/` with payment-method selection, guest checkout flow, and validation messaging for unavailable stock and invalid quantities
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently.
 
@@ -157,11 +157,11 @@
 
 **Purpose**: Finalize shared quality, validation, and cross-story consistency checks.
 
-- [ ] T057 [P] Review all endpoints and UI flows against the constitution and `spec.md` to ensure no rule is bypassed, including secure password handling, stock rules, historical pricing, and authorization boundaries
-- [ ] T058 [P] Review all frontend forms and backend responses to ensure error messages are understandable and do not expose raw stack traces or internal implementation details
-- [ ] T059 [P] Run end-to-end validation using the scenarios in `quickstart.md` for catalog browsing, checkout, guest purchase, admin actions, and payment/manual cancellation flows
-- [ ] T060 Add final documentation and cross-link references between `spec.md`, `plan.md`, `data-model.md`, `contracts/`, and `quickstart.md` in the feature folder
-- [ ] T061 Ensure all tasks and file paths conform to the required checklist format: checkbox, task ID, optional `[P]`, and story labels `[USx]` where required
+- [X] T057 [P] Review all endpoints and UI flows against the constitution and `spec.md` to ensure no rule is bypassed, including secure password handling, stock rules, historical pricing, and authorization boundaries
+- [X] T058 [P] Review all frontend forms and backend responses to ensure error messages are understandable and do not expose raw stack traces or internal implementation details
+- [X] T059 [P] Run end-to-end validation using the scenarios in `quickstart.md` for catalog browsing, checkout, guest purchase, admin actions, and payment/manual cancellation flows
+- [X] T060 Add final documentation and cross-link references between `spec.md`, `plan.md`, `data-model.md`, `contracts/`, and `quickstart.md` in the feature folder
+- [X] T061 Ensure all tasks and file paths conform to the required checklist format: checkbox, task ID, optional `[P]`, and story labels `[USx]` where required
 
 ---
 

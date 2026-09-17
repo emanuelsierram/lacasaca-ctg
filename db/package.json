@@ -1,0 +1,8 @@
+{
+  "name": "@lacasaca/db",
+  "private": true,
+  "scripts": {
+    "migrate": "node -e \"console.log('No migrations configured yet. Add PostgreSQL migration scripts here.')\"",
+    "seed:demo": "node -e \"console.log('Seed script placeholder for demo catalog data.')\""
+  }
+}

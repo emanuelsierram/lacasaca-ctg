@@ -1,0 +1,13 @@
+{
+  "name": "lacasaca-ctg",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "db"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "dev": "npm run dev --workspace backend"
+  }
+}
