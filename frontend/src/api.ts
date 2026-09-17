@@ -4,7 +4,7 @@ export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
 export type Variant = {
   id: string;
   sku?: string;
-  attributes: Record<string, string>;
+  attributes: Record<string, string | boolean>;
   price: number;
   stock: number;
   isActive: boolean;
@@ -28,6 +28,7 @@ export type CartItem = {
   variantId: string;
   productName: string;
   variantLabel: string;
+  availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -66,8 +67,8 @@ export const api = {
   },
   getProduct(id: string) { return request<Product>(`/catalog/products/${id}`); },
   getCart() { return request<Cart>('/cart'); },
-  addToCart(variantId: string, quantity = 1) {
-    return request<CartItem>('/cart/items', { method: 'POST', body: JSON.stringify({ variantId, quantity }) });
+  addToCart(variantId: string, quantity = 1, attributes?: Record<string, string | boolean>) {
+    return request<CartItem>('/cart/items', { method: 'POST', body: JSON.stringify({ variantId, quantity, ...(attributes ? { attributes } : {}) }) });
   },
   updateCartItem(id: string, quantity: number) {
     return request<CartItem>(`/cart/items/${id}`, { method: 'PATCH', body: JSON.stringify({ quantity }) });
@@ -96,5 +97,7 @@ export const api = {
 };
 
 export function variantLabel(variant: Variant) {
-  return Object.values(variant.attributes).join(' - ') || variant.sku || 'Única';
+  const size = variant.attributes.size ? `Talla: ${variant.attributes.size}` : '';
+  const details = Object.entries(variant.attributes).filter(([key]) => key !== 'size').map(([key, value]) => `${key}: ${typeof value === 'boolean' ? (value ? 'Sí' : 'No') : value}`);
+  return [size, ...details].filter(Boolean).join(' · ') || variant.sku || 'Única';
 }

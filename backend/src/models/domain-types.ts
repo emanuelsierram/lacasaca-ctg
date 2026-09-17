@@ -15,7 +15,7 @@ export type VariantRecord = {
   stock: number;
   isActive: boolean;
   availabilityType: AvailabilityType;
-  attributes: Record<string, string>;
+  attributes: Record<string, string | boolean>;
 };
 
 export type OrderItemSnapshot = {

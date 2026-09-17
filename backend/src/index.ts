@@ -23,7 +23,7 @@ type Category = (typeof categoryEnum)[number];
 type Variant = {
   id: string;
   sku: string;
-  attributes: Record<string, string>;
+  attributes: Record<string, string | boolean>;
   price: number;
   stock: number;
   isActive: boolean;
@@ -87,7 +87,7 @@ const products: Product[] = [
       {
         id: 'var-1',
         sku: 'BAR-2024-M',
-        attributes: { size: 'M', version: 'Home' },
+        attributes: { size: 'M', version: 'Home', 'long-sleeves': false, tournament: 'LaLiga', dorsal: '10' },
         price: 129.99,
         stock: 12,
         isActive: true,
@@ -96,7 +96,7 @@ const products: Product[] = [
       {
         id: 'var-2',
         sku: 'BAR-2024-L',
-        attributes: { size: 'L', version: 'Home' },
+        attributes: { size: 'L', version: 'Home', 'long-sleeves': false, tournament: 'LaLiga', dorsal: '10' },
         price: 129.99,
         stock: 0,
         isActive: true,
@@ -117,7 +117,7 @@ const products: Product[] = [
       {
         id: 'var-3',
         sku: 'ARG-86-M',
-        attributes: { size: 'M', version: 'Retro' },
+        attributes: { size: 'M', version: 'Fan', 'long-sleeves': false, tournament: 'Mundial', dorsal: '10' },
         price: 149.0,
         stock: 4,
         isActive: true,
@@ -156,7 +156,7 @@ async function syncCatalogToDatabase() {
         `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
          VALUES ($1, (SELECT id FROM products WHERE legacy_id = $2), $3, $4::jsonb, $5, $6, $7, $8::availability_type)
          ON CONFLICT (legacy_id) DO UPDATE SET product_id = EXCLUDED.product_id, sku = EXCLUDED.sku,
-           attributes = EXCLUDED.attributes, price = EXCLUDED.price, stock = EXCLUDED.stock,
+           attributes = variants.attributes || EXCLUDED.attributes, price = EXCLUDED.price, stock = EXCLUDED.stock,
            is_active = EXCLUDED.is_active, availability_type = EXCLUDED.availability_type, updated_at = now()`,
         [variant.id, product.id, variant.sku, JSON.stringify(variant.attributes), variant.price, variant.stock, variant.isActive, variant.availabilityType]
       );
@@ -256,7 +256,8 @@ const isAdmin = (userId?: string | null) => !!userId && adminUsers.has(userId);
 
 const cartItemSchema = z.object({
   variantId: z.string().min(1),
-  quantity: z.number().int().positive().max(99)
+  quantity: z.number().int().positive().max(99),
+  attributes: z.record(z.union([z.string(), z.boolean()])).optional()
 });
 
 const checkoutSchema = z.object({
@@ -329,10 +330,10 @@ app.post('/api/cart/items', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Invalid cart item payload' });
   }
 
-  const { variantId, quantity } = parsed.data;
+  const { variantId, quantity, attributes } = parsed.data;
   const cartId = (req.headers['x-cart-id'] as string) || 'guest-cart';
   try {
-    return res.status(201).json(await addDbCartItem(cartId, variantId, quantity));
+    return res.status(201).json(await addDbCartItem(cartId, variantId, quantity, attributes));
   } catch (error) {
     return res.status(error instanceof Error && error.message === 'Variant not found' ? 404 : 422).json({ message: error instanceof Error ? error.message : 'Unable to add cart item' });
   }

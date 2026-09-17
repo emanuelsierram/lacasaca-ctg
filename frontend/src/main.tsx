@@ -62,7 +62,15 @@ const App = () => {
       {route === 'catalog' && <CatalogPage onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
-      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account) => { if (account) saveSession(account); navigate(`order-success/${id}`); }} />}
+      {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account, madeToOrder) => {
+        if (account) saveSession(account);
+        if (madeToOrder) {
+          const text = `Hola, quiero finalizar el pedido ${id} realizado en Lacasaca. Deseo pagar el 30% por WhatsApp.`;
+          window.location.assign(`https://api.whatsapp.com/send?phone=573246108197&text=${encodeURIComponent(text)}`);
+          return;
+        }
+        navigate(`order-success/${id}`);
+      }} />}
       {route === 'auth' && <AuthPage onAuthenticated={onAuth} />}
       {route === 'orders' && <OrdersPage />}
       {route.startsWith('order-success/') && <OrderSuccessPage orderId={route.split('/')[1]} onOrders={() => navigate('orders')} />}

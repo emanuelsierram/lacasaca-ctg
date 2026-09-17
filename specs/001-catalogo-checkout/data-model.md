@@ -33,7 +33,7 @@ Validation rules:
 - id: UUID
 - productId: UUID
 - sku: string
-- attributes: jsonb
+- attributes: jsonb con `size`, `version`, `long-sleeves` (boolean), `tournament` y `dorsal`; los productos sobre pedido permiten configurar estos valores desde el detalle.
 - price: decimal(12,2)
 - stock: integer
 - isActive: boolean
