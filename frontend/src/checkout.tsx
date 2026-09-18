@@ -16,6 +16,10 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     setMessage('');
+    if (isMadeToOrder) {
+      onCompleted('', undefined, true);
+      return;
+    }
     api.checkout({
       paymentMethod,
       guestCheckout: !session,
