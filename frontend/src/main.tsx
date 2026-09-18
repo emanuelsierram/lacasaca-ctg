@@ -72,7 +72,8 @@ const App = () => {
       {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account, madeToOrder) => {
         if (account) saveSession(account);
         if (madeToOrder) {
-          const text = `Hola, quiero finalizar el pedido ${id} realizado en Lacasaca. Deseo pagar el 30% por WhatsApp.`;
+          const products = cart.items.map((item) => `${item.productName} Talla: ${item.variantLabel}`).join(', ');
+          const text = `Hola, quiero finalizar el pedido de mi casaca: [${products}] realizado en lacasacactg.co. Deseo pagar el abono de 30%, me indicas los metodos de pago.`;
           window.location.assign(`https://api.whatsapp.com/send?phone=573246108197&text=${encodeURIComponent(text)}`);
           return;
         }
