@@ -39,6 +39,7 @@ type Product = {
   availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   isActive: boolean;
   featuredImage: string;
+  images: string[];
   variants: Variant[];
 };
 
@@ -73,118 +74,12 @@ type Order = {
   createdAt: string;
 };
 
-const products: Product[] = [
-  {
-    id: 'prod-1',
-    slug: 'barcelona-2024',
-    name: 'Camiseta FC Barcelona 2024',
-    description: 'Estandar para partido y entrenamiento.',
-    category: 'ACTUALES',
-    availabilityType: 'IMMEDIATE',
-    isActive: true,
-    featuredImage: 'https://images.example.com/barca.jpg',
-    variants: [
-      {
-        id: 'var-1',
-        sku: 'BAR-2024-M',
-        attributes: { size: 'M', version: 'Home', 'long-sleeves': false, tournament: 'LaLiga', dorsal: '10' },
-        price: 129.99,
-        stock: 12,
-        isActive: true,
-        availabilityType: 'IMMEDIATE'
-      },
-      {
-        id: 'var-2',
-        sku: 'BAR-2024-L',
-        attributes: { size: 'L', version: 'Home', 'long-sleeves': false, tournament: 'LaLiga', dorsal: '10' },
-        price: 129.99,
-        stock: 0,
-        isActive: true,
-        availabilityType: 'IMMEDIATE'
-      }
-    ]
-  },
-  {
-    id: 'prod-2',
-    slug: 'argentina-1986',
-    name: 'Camiseta Argentina Retro 1986',
-    description: 'Versión clásica de la selección.',
-    category: 'RETROS',
-    availabilityType: 'MADE_TO_ORDER',
-    isActive: true,
-    featuredImage: 'https://images.example.com/argentina.jpg',
-    variants: [
-      {
-        id: 'var-3',
-        sku: 'ARG-86-M',
-        attributes: { size: 'M', version: 'Fan', 'long-sleeves': false, tournament: 'Mundial', dorsal: '10' },
-        price: 149.0,
-        stock: 4,
-        isActive: true,
-        availabilityType: 'MADE_TO_ORDER'
-      }
-    ]
-  },
-  ...[
-    ['prod-3', 'Camiseta Real Madrid 2025', 'actuales', 'IMMEDIATE', 'Camiseta blanca de competición.', 'RM-2025', 18, 119.99, 'size:M'],
-    ['prod-4', 'Camiseta Manchester City 2025', 'actuales', 'IMMEDIATE', 'Diseño celeste de temporada.', 'MC-2025', 10, 114.99, 'size:L'],
-    ['prod-5', 'Camiseta Brasil 2024', 'selecciones', 'IMMEDIATE', 'La clásica canarinha.', 'BRA-2024', 8, 109.99, 'size:M'],
-    ['prod-6', 'Camiseta México 2024', 'selecciones', 'IMMEDIATE', 'Verde de la selección mexicana.', 'MEX-2024', 6, 104.99, 'size:S'],
-    ['prod-7', 'Camiseta Milan Retro 1994', 'retros', 'IMMEDIATE', 'Un clásico rossonero.', 'MIL-94', 4, 139.99, 'size:XL'],
-    ['prod-8', 'Camiseta Colombia Femenina', 'femenino', 'IMMEDIATE', 'Orgullo tricolor para ellas.', 'COL-F-2025', 9, 99.99, 'size:M'],
-    ['prod-9', 'Camiseta Argentina Mundial', 'selecciones', 'IMMEDIATE', 'La albiceleste campeona.', 'ARG-WC', 12, 129.99, 'size:L'],
-    ['prod-10', 'Camiseta Portugal Personalizada', 'selecciones', 'MADE_TO_ORDER', 'Diseño personalizado de Portugal.', 'POR-CUSTOM', 0, 119.99, 'size:'],
-    ['prod-11', 'Camiseta Japón Edición Especial', 'actuales', 'MADE_TO_ORDER', 'Edición especial bajo pedido.', 'JPN-SPECIAL', 0, 124.99, 'size:'],
-    ['prod-12', 'Camiseta Nigeria Fan Edition', 'selecciones', 'MADE_TO_ORDER', 'Modelo fan bajo pedido.', 'NGA-FAN', 0, 114.99, 'size:']
-  ].map(([id, name, category, availabilityType, description, sku, stock, price, size]) => ({
-    id: id as string,
-    slug: (name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    name: name as string,
-    description: description as string,
-    category: String(category).toUpperCase() as Category,
-    availabilityType: availabilityType as 'IMMEDIATE' | 'MADE_TO_ORDER',
-    isActive: true,
-    featuredImage: '',
-    variants: [{ id: `var-${id}`, sku: sku as string, attributes: { size: String(size).replace('size:', ''), version: availabilityType === 'MADE_TO_ORDER' ? 'Fan' : 'Player', 'long-sleeves': false, tournament: '', dorsal: '' }, price: Number(price), stock: Number(stock), isActive: true, availabilityType: availabilityType as 'IMMEDIATE' | 'MADE_TO_ORDER' }]
-  }))
-];
-
 const carts: { id: string; items: CartItem[] }[] = [];
 const orders: Order[] = [];
 const users: UserRecord[] = [];
 const adminUsers = new Set(['admin-1']);
 
-const persistState = () => saveState({ products, carts, orders, users });
-
-async function syncCatalogToDatabase() {
-  for (const product of products) {
-    const category = await pool.query<{ id: string }>(
-      'SELECT id FROM categories WHERE name = $1',
-      [product.category]
-    );
-    const categoryId = category.rows[0]?.id;
-    if (!categoryId) continue;
-    await pool.query(
-      `INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type, is_active, featured_image)
-       VALUES ($1, $2, $3, $4, $5, $6::availability_type, $7, $8)
-       ON CONFLICT (legacy_id) DO UPDATE SET slug = EXCLUDED.slug, name = EXCLUDED.name,
-         description = EXCLUDED.description, category_id = EXCLUDED.category_id,
-         availability_type = EXCLUDED.availability_type, is_active = EXCLUDED.is_active,
-         featured_image = EXCLUDED.featured_image, updated_at = now()`,
-      [product.id, product.slug, product.name, product.description, categoryId, product.availabilityType, product.isActive, product.featuredImage]
-    );
-    for (const variant of product.variants) {
-      await pool.query(
-        `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
-         VALUES ($1, (SELECT id FROM products WHERE legacy_id = $2), $3, $4::jsonb, $5, $6, $7, $8::availability_type)
-         ON CONFLICT (legacy_id) DO UPDATE SET product_id = EXCLUDED.product_id, sku = EXCLUDED.sku,
-           attributes = variants.attributes || EXCLUDED.attributes, price = EXCLUDED.price, stock = EXCLUDED.stock,
-           is_active = EXCLUDED.is_active, availability_type = EXCLUDED.availability_type, updated_at = now()`,
-        [variant.id, product.id, variant.sku, JSON.stringify(variant.attributes), variant.price, variant.stock, variant.isActive, variant.availabilityType]
-      );
-    }
-  }
-}
+const persistState = () => saveState({ carts, orders, users });
 
 async function syncUsersToDatabase() {
   for (const user of users) {
@@ -214,7 +109,9 @@ async function updateUserAddress(userLegacyId: string, address: string) {
 async function listCatalogFromDatabase() {
   const result = await pool.query(`
     SELECT p.legacy_id AS id, p.name, p.slug, p.description, c.name AS category,
-      p.availability_type AS "availabilityType", p.is_active AS "isActive", p.featured_image AS "featuredImage",
+      p.availability_type AS "availabilityType", p.is_active AS "isActive",
+      COALESCE((SELECT jsonb_agg(pi.image_url ORDER BY pi.sort_order, pi.created_at)
+        FROM product_images pi WHERE pi.product_id = p.id AND pi.is_active = true), '[]'::jsonb) AS images,
       COALESCE(jsonb_agg(jsonb_build_object('id', v.legacy_id, 'sku', v.sku, 'attributes', v.attributes,
         'price', v.price, 'stock', v.stock, 'isActive', v.is_active, 'availabilityType', v.availability_type)
         ORDER BY v.created_at) FILTER (WHERE v.legacy_id IS NOT NULL), '[]'::jsonb) AS variants
@@ -230,7 +127,9 @@ async function listCatalogFromDatabase() {
 async function getCatalogProductFromDatabase(id: string) {
   const result = await pool.query(`
     SELECT p.legacy_id AS id, p.name, p.slug, p.description, c.name AS category,
-      p.availability_type AS "availabilityType", p.is_active AS "isActive", p.featured_image AS "featuredImage",
+      p.availability_type AS "availabilityType", p.is_active AS "isActive",
+      COALESCE((SELECT jsonb_agg(pi.image_url ORDER BY pi.sort_order, pi.created_at)
+        FROM product_images pi WHERE pi.product_id = p.id AND pi.is_active = true), '[]'::jsonb) AS images,
       COALESCE(jsonb_agg(jsonb_build_object('id', v.legacy_id, 'sku', v.sku, 'attributes', v.attributes,
         'price', v.price, 'stock', v.stock, 'isActive', v.is_active, 'availabilityType', v.availability_type)
         ORDER BY v.created_at) FILTER (WHERE v.legacy_id IS NOT NULL), '[]'::jsonb) AS variants
@@ -264,15 +163,21 @@ const safeProduct = (product: Product) => ({
 
 const getCart = (cartId: string) => carts.find((cart) => cart.id === cartId) ?? { id: cartId, items: [] };
 
-const findVariant = (variantId: string) => {
-  for (const product of products) {
-    const variant = product.variants.find((item) => item.id === variantId);
-    if (variant) {
-      return { product, variant };
-    }
-  }
-  return null;
-};
+async function findVariant(variantId: string) {
+  const result = await pool.query<{
+    id: string;
+    sku: string;
+    attributes: Record<string, string | boolean>;
+    price: number;
+    stock: number;
+    isActive: boolean;
+  }>(
+    `SELECT legacy_id AS id, sku, attributes, price, stock, is_active AS "isActive"
+     FROM variants WHERE legacy_id = $1`,
+    [variantId]
+  );
+  return result.rows[0] ?? null;
+}
 
 const isAdmin = (userId?: string | null) => !!userId && adminUsers.has(userId);
 
@@ -576,7 +481,7 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
     return res.status(403).json({ message: 'Admin access required' });
   }
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const found = findVariant(variantId);
+  const found = await findVariant(variantId);
   if (!found) {
     return res.status(404).json({ message: 'Variant not found' });
   }
@@ -587,16 +492,15 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
   if (stock !== undefined && (!Number.isInteger(stock) || (stock as number) < 0)) {
     return res.status(400).json({ message: 'Stock must be a non-negative integer' });
   }
-  if (price !== undefined) found.variant.price = price as number;
-  if (stock !== undefined) found.variant.stock = stock as number;
-  if (isActive !== undefined) found.variant.isActive = Boolean(isActive);
-  await pool.query(
+  const updated = await pool.query(
     `UPDATE variants SET price = COALESCE($1, price), stock = COALESCE($2, stock),
        is_active = COALESCE($3, is_active), updated_at = now() WHERE legacy_id = $4`,
     [price ?? null, stock ?? null, isActive ?? null, variantId]
   );
-  await persistState();
-  return res.json(found.variant);
+  if (!updated.rowCount) {
+    return res.status(404).json({ message: 'Variant not found' });
+  }
+  return res.json(await findVariant(variantId));
 });
 
 app.patch('/api/admin/orders/:id/status', async (req: Request, res: Response) => {
@@ -633,16 +537,10 @@ app.use((err: unknown, _req: Request, res: Response, _next: () => void) => {
 
 async function start() {
   await initializeDatabase();
-  const state = await loadState({ products: [], carts: [], orders: [], users: [] });
-  if (state.products.length > 0) {
-    const persistedById = new Map(state.products.map((product) => [product.id, product]));
-    products.splice(0, products.length, ...products.map((product) => persistedById.get(product.id) ?? product), ...state.products.filter((product) => !products.some((current) => current.id === product.id)));
-  }
+  const state = await loadState({ carts: [], orders: [], users: [] });
   if (state.carts.length > 0) carts.splice(0, carts.length, ...state.carts);
   if (state.orders.length > 0) orders.splice(0, orders.length, ...state.orders);
   if (state.users.length > 0) users.splice(0, users.length, ...state.users);
-  if (state.products.length === 0) await persistState();
-  await syncCatalogToDatabase();
   await syncUsersToDatabase();
   app.listen(port, () => {
     console.log(`Lacasaca backend listening on http://localhost:${port}`);

@@ -20,6 +20,7 @@ export type Product = {
   availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   isActive: boolean;
   featuredImage?: string;
+  images?: string[];
   variants: Variant[];
 };
 
