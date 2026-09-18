@@ -124,7 +124,29 @@ const products: Product[] = [
         availabilityType: 'MADE_TO_ORDER'
       }
     ]
-  }
+  },
+  ...[
+    ['prod-3', 'Camiseta Real Madrid 2025', 'actuales', 'IMMEDIATE', 'Camiseta blanca de competición.', 'RM-2025', 18, 119.99, 'size:M'],
+    ['prod-4', 'Camiseta Manchester City 2025', 'actuales', 'IMMEDIATE', 'Diseño celeste de temporada.', 'MC-2025', 10, 114.99, 'size:L'],
+    ['prod-5', 'Camiseta Brasil 2024', 'selecciones', 'IMMEDIATE', 'La clásica canarinha.', 'BRA-2024', 8, 109.99, 'size:M'],
+    ['prod-6', 'Camiseta México 2024', 'selecciones', 'IMMEDIATE', 'Verde de la selección mexicana.', 'MEX-2024', 6, 104.99, 'size:S'],
+    ['prod-7', 'Camiseta Milan Retro 1994', 'retros', 'IMMEDIATE', 'Un clásico rossonero.', 'MIL-94', 4, 139.99, 'size:XL'],
+    ['prod-8', 'Camiseta Colombia Femenina', 'femenino', 'IMMEDIATE', 'Orgullo tricolor para ellas.', 'COL-F-2025', 9, 99.99, 'size:M'],
+    ['prod-9', 'Camiseta Argentina Mundial', 'selecciones', 'IMMEDIATE', 'La albiceleste campeona.', 'ARG-WC', 12, 129.99, 'size:L'],
+    ['prod-10', 'Camiseta Portugal Personalizada', 'selecciones', 'MADE_TO_ORDER', 'Diseño personalizado de Portugal.', 'POR-CUSTOM', 0, 119.99, 'size:'],
+    ['prod-11', 'Camiseta Japón Edición Especial', 'actuales', 'MADE_TO_ORDER', 'Edición especial bajo pedido.', 'JPN-SPECIAL', 0, 124.99, 'size:'],
+    ['prod-12', 'Camiseta Nigeria Fan Edition', 'selecciones', 'MADE_TO_ORDER', 'Modelo fan bajo pedido.', 'NGA-FAN', 0, 114.99, 'size:']
+  ].map(([id, name, category, availabilityType, description, sku, stock, price, size]) => ({
+    id: id as string,
+    slug: (name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    name: name as string,
+    description: description as string,
+    category: String(category).toUpperCase() as Category,
+    availabilityType: availabilityType as 'IMMEDIATE' | 'MADE_TO_ORDER',
+    isActive: true,
+    featuredImage: '',
+    variants: [{ id: `var-${id}`, sku: sku as string, attributes: { size: String(size).replace('size:', ''), version: availabilityType === 'MADE_TO_ORDER' ? 'Fan' : 'Player', 'long-sleeves': false, tournament: '', dorsal: '' }, price: Number(price), stock: Number(stock), isActive: true, availabilityType: availabilityType as 'IMMEDIATE' | 'MADE_TO_ORDER' }]
+  }))
 ];
 
 const carts: { id: string; items: CartItem[] }[] = [];
@@ -612,7 +634,10 @@ app.use((err: unknown, _req: Request, res: Response, _next: () => void) => {
 async function start() {
   await initializeDatabase();
   const state = await loadState({ products: [], carts: [], orders: [], users: [] });
-  if (state.products.length > 0) products.splice(0, products.length, ...state.products);
+  if (state.products.length > 0) {
+    const persistedById = new Map(state.products.map((product) => [product.id, product]));
+    products.splice(0, products.length, ...products.map((product) => persistedById.get(product.id) ?? product), ...state.products.filter((product) => !products.some((current) => current.id === product.id)));
+  }
   if (state.carts.length > 0) carts.splice(0, carts.length, ...state.carts);
   if (state.orders.length > 0) orders.splice(0, orders.length, ...state.orders);
   if (state.users.length > 0) users.splice(0, users.length, ...state.users);

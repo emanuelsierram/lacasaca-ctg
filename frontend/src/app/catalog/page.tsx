@@ -3,8 +3,7 @@ import { api, type Product } from '../../api';
 
 const categories = ['ALL', 'ACTUALES', 'RETROS', 'SELECCIONES', 'FEMENINO', 'NINOS'] as const;
 
-export function CatalogPage({ onOpenProduct }: { onOpenProduct: (id: string) => void }) {
-  const [search, setSearch] = useState('');
+export function CatalogPage({ search, onOpenProduct }: { search: string; onOpenProduct: (id: string) => void }) {
   const [category, setCategory] = useState<(typeof categories)[number]>('ALL');
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState('');
@@ -18,7 +17,7 @@ export function CatalogPage({ onOpenProduct }: { onOpenProduct: (id: string) => 
   }, [category, search]);
 
   return <section className="mx-auto max-w-6xl px-6 py-10">
-    <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Colección 2026</p><h1 className="text-4xl font-bold text-slate-950">Camisetas con historia</h1><p className="mt-2 max-w-xl text-slate-600">Encuentra tu próxima camiseta de fútbol, desde clásicos retro hasta las selecciones actuales.</p></div><label className="w-full max-w-md"><span className="mb-2 block text-sm font-medium text-slate-700">Buscar producto</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Barcelona, retro, selección..." className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-slate-900" /></label></div>
+    <div className="mb-8"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Colección 2026</p><h1 className="text-4xl font-bold text-slate-950">Camisetas con historia</h1><p className="mt-2 max-w-xl text-slate-600">Encuentra tu próxima camiseta de fútbol, desde clásicos retro hasta las selecciones actuales.</p></div>
     <div className="mb-7 flex flex-wrap gap-2">{categories.map((option) => <button key={option} type="button" onClick={() => setCategory(option)} className={`rounded-full border px-3 py-2 text-sm font-medium ${category === option ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{option === 'ALL' ? 'Todas' : option}</button>)}</div>
     {error ? <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">{error}. Verifica que el backend esté iniciado.</div> : products.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">No encontramos productos para esta búsqueda.</div> : <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">{products.map((product) => {
       const activeVariants = product.variants.filter((variant) => variant.isActive);

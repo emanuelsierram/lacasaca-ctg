@@ -13,6 +13,8 @@ import './styles.css';
 
 const App = () => {
   const [route, setRoute] = React.useState(window.location.hash.slice(1) || 'catalog');
+  const [search, setSearch] = React.useState('');
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const [cart, setCart] = React.useState<Cart>({ id: 'guest-cart', items: [], total: 0 });
   const [session, setSession] = React.useState<Session | null>(() => {
     const saved = localStorage.getItem('lacasaca-session');
@@ -26,7 +28,7 @@ const App = () => {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const navigate = (next: string) => { window.location.hash = next; };
+  const navigate = (next: string) => { window.location.hash = next; setMenuOpen(false); };
   const refreshCart = () => api.getCart().then(setCart);
   const saveSession = (next: Session) => {
     setSession(next);
@@ -47,19 +49,24 @@ const App = () => {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <header className="bg-slate-950 px-6 py-4 text-white shadow">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <button className="text-left" onClick={() => navigate('catalog')}>
-            <p className="text-xl font-bold">Lacasaca</p>
-            <p className="text-xs text-slate-300">Camisetas que cuentan historias</p>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <button className="shrink-0" onClick={() => navigate('catalog')} aria-label="Ir al catálogo">
+            <img src="/lacasaca-logo.svg" alt="Lacasaca" className="h-10 w-auto max-w-[220px] origin-left scale-[2.75] object-contain" />
           </button>
-          <nav className="flex items-center gap-3 text-sm">
+          <nav className="hidden min-w-0 items-center gap-3 text-sm md:flex">
+            <label className="relative hidden min-w-0 sm:block"><span className="sr-only">Buscar producto</span><svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" strokeLinecap="round" /></svg><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar..." aria-label="Buscar producto" className="w-40 rounded-lg border border-white/20 bg-white px-10 py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-400 md:w-56" /></label>
             <button onClick={() => navigate('catalog')}>Catálogo</button>
-            <button onClick={() => navigate('cart')} className="rounded-full bg-white/10 px-3 py-1.5">Carrito ({cart.items.length})</button>
+            <button onClick={() => navigate('cart')} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h2l2.2 11h10.4L20 8H6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg>Carrito ({cart.items.length})</button>
             {session ? <><button onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button onClick={() => navigate('admin')}>Admin</button>}<button onClick={logout}>Salir</button></> : <button onClick={() => navigate('auth')}>Entrar</button>}
           </nav>
+          <div className="flex items-center gap-2 md:hidden">
+            <button onClick={() => navigate('cart')} aria-label="Abrir carrito" className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h2l2.2 11h10.4L20 8H6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg><span>{cart.items.length}</span></button>
+            <button onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen} className="rounded-lg p-2 hover:bg-white/10"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2"><path d={menuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 6h16M4 12h16M4 18h16'} strokeLinecap="round" /></svg></button>
+          </div>
         </div>
+        {menuOpen && <div className="mx-auto mt-4 space-y-3 border-t border-white/10 pt-4 md:hidden"><label className="relative block"><span className="sr-only">Buscar producto</span><svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" strokeLinecap="round" /></svg><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar..." aria-label="Buscar producto" className="w-full rounded-lg border border-white/20 bg-white px-9 py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-400" /></label><button className="block w-full py-2 text-left" onClick={() => navigate('catalog')}>Catálogo</button>{session ? <><button className="block w-full py-2 text-left" onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button className="block w-full py-2 text-left" onClick={() => navigate('admin')}>Admin</button>}<button className="block w-full py-2 text-left" onClick={logout}>Salir</button></> : <button className="block w-full py-2 text-left" onClick={() => navigate('auth')}>Entrar</button>}</div>}
       </header>
-      {route === 'catalog' && <CatalogPage onOpenProduct={(id) => navigate(`product/${id}`)} />}
+      {route === 'catalog' && <CatalogPage search={search} onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
       {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account, madeToOrder) => {
