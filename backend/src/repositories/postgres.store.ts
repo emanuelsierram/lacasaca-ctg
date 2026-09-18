@@ -26,7 +26,13 @@ export async function getDbCart(cartLegacyId: string): Promise<{ id: string; ite
   await ensureCart(cartLegacyId);
   const result = await pool.query<DbCartItem>(
      `SELECT ci.legacy_id AS id, v.legacy_id AS "variantId", p.name AS "productName",
-      concat_ws(' - ', v.attributes->>'size', v.attributes->>'version', v.attributes->>'tournament', v.attributes->>'dorsal', CASE WHEN v.attributes->>'long-sleeves' = 'true' THEN 'Manga larga' END) AS "variantLabel",
+      concat_ws(' - ',
+        NULLIF(v.attributes->>'size', ''),
+        NULLIF(v.attributes->>'version', ''),
+        NULLIF(v.attributes->>'tournament', ''),
+        NULLIF(v.attributes->>'dorsal', ''),
+        CASE WHEN v.attributes->>'long-sleeves' = 'true' THEN 'Manga larga' END
+      ) AS "variantLabel",
        v.availability_type AS "availabilityType",
        ci.unit_price_snapshot AS "unitPrice", ci.quantity,
        ci.unit_price_snapshot * ci.quantity AS subtotal
@@ -121,7 +127,7 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
       }
       subtotal += Number(item.price) * item.quantity;
     }
-    const shipping = subtotal > 0 ? 9.99 : 0;
+    const shipping = subtotal > 0 ? 9990 : 0;
     const orderLegacyId = `order-${Date.now()}`;
     const order = await client.query<{ id: string }>(
       `INSERT INTO orders (legacy_id, user_id, customer_phone, status, payment_method, payment_status, total, shipping_cost)

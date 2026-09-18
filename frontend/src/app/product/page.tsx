@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api, type Product } from "../../api";
 import { madeToOrderPrice } from "../../pricing";
+import { formatCOP } from "../../currency";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
 const versions = ["Fan", "Player"];
@@ -262,7 +263,7 @@ export function ProductDetailPage({
             <div className="mt-6 flex items-end justify-between gap-4 border-t border-slate-200 pt-5">
               <div>
                 <p className="text-sm text-slate-500">Precio</p>
-                <p className="text-3xl font-bold">${price.toFixed(2)}</p>
+                <p className="text-3xl font-bold">{formatCOP(price)}</p>
               </div>
               <button
                 type="button"
