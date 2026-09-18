@@ -1,7 +1,7 @@
 export const MADE_TO_ORDER_SURCHARGES = {
-  longSleeves: 5,
-  tournament: 2,
-  dorsal: 5
+  longSleeves: 20000,
+  tournament: 5000,
+  dorsal: 20000
 } as const;
 
 export function madeToOrderPrice(basePrice: number, attributes: Record<string, string | boolean>) {
