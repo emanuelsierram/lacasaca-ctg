@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -21,6 +22,7 @@ export async function initializeDatabase() {
     throw new Error('PostgreSQL credentials are missing. Create backend/.env from backend/.env.example and set PGPASSWORD.');
   }
   await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
+  await pool.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum text');
   const migrationCandidates = [
     path.resolve(process.cwd(), 'db', 'migrations'),
     path.resolve(__dirname, '../../../db/migrations')
@@ -35,13 +37,18 @@ export async function initializeDatabase() {
   if (!migrationDirectory) throw new Error('Migration directory not found');
   const migrationFiles = (await fs.readdir(migrationDirectory)).filter((file) => file.endsWith('.sql')).sort();
   for (const file of migrationFiles) {
-    const applied = await pool.query('SELECT 1 FROM schema_migrations WHERE version = $1', [file]);
-    if (applied.rowCount) continue;
+    const sql = await fs.readFile(path.join(migrationDirectory, file), 'utf8');
+    const checksum = createHash('sha256').update(sql).digest('hex');
+    const applied = await pool.query<{ checksum: string | null }>('SELECT checksum FROM schema_migrations WHERE version = $1', [file]);
+    if (applied.rows[0]?.checksum === checksum) continue;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(await fs.readFile(path.join(migrationDirectory, file), 'utf8'));
-      await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [file]);
+      await client.query(sql);
+      await client.query(
+        'INSERT INTO schema_migrations (version, checksum) VALUES ($1, $2) ON CONFLICT (version) DO UPDATE SET checksum = EXCLUDED.checksum, applied_at = now()',
+        [file, checksum]
+      );
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');

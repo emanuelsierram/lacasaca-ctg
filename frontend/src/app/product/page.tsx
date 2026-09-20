@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, type Product } from "../../api";
-import { madeToOrderPrice } from "../../pricing";
+import { immediatePrice, madeToOrderPrice } from "../../pricing";
 import { formatCOP } from "../../currency";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
@@ -38,6 +38,8 @@ export function ProductDetailPage({
 }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [selectedSize, setSelectedSize] = useState("");
+  const [selectedDorsal, setSelectedDorsal] = useState("");
   const [attributes, setAttributes] =
     useState<MadeToOrderAttributes>(emptyMadeToOrder);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -50,6 +52,9 @@ export function ProductDetailPage({
         setSelectedVariantId(
           next.variants.find((variant) => variant.isActive)?.id ?? "",
         );
+        const firstVariant = next.variants.find((variant) => variant.isActive);
+        setSelectedSize(String(firstVariant?.attributes.size ?? ""));
+        setSelectedDorsal(String(firstVariant?.attributes.dorsal ?? ""));
         setSelectedImage(0);
         setAttributes(emptyMadeToOrder);
       })
@@ -63,9 +68,27 @@ export function ProductDetailPage({
     );
   const variants = product.variants.filter((variant) => variant.isActive);
   const isMadeToOrder = product.availabilityType === "MADE_TO_ORDER";
-  const selectedVariant = variants.find(
-    (variant) => variant.id === selectedVariantId,
+  const hidesVersion = ["RETROS", "NINOS", "FEMENINO"].includes(product.category);
+  const sizeVariants = variants.filter(
+    (variant) => String(variant.attributes.size ?? "") === selectedSize,
   );
+  const dorsalOptions = [
+    ...new Set(
+      sizeVariants
+        .map((variant) => String(variant.attributes.dorsal ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const noDorsalVariant = sizeVariants.find(
+    (variant) => !String(variant.attributes.dorsal ?? "").trim(),
+  );
+  const selectedVariant = isMadeToOrder
+    ? variants.find((variant) => variant.id === selectedVariantId)
+    : sizeVariants.find(
+        (variant) =>
+          String(variant.attributes.dorsal ?? "").trim() === selectedDorsal,
+      ) ??
+      noDorsalVariant;
   const baseVariant = variants[0] ?? selectedVariant;
   const available = isMadeToOrder
     ? Boolean(attributes.size)
@@ -73,7 +96,9 @@ export function ProductDetailPage({
   const price =
     isMadeToOrder && baseVariant
       ? madeToOrderPrice(baseVariant.price, attributes)
-      : (selectedVariant?.price ?? 0);
+      : selectedVariant
+        ? immediatePrice(selectedVariant.price, selectedDorsal)
+        : 0;
   const images = product.images ?? [];
   const currentImage = images[selectedImage];
   const update = (
@@ -94,7 +119,7 @@ export function ProductDetailPage({
           tournament: attributes.tournament,
           dorsal: attributes.dorsal,
         }
-      : undefined;
+      : { ...selectedVariant.attributes, dorsal: selectedDorsal };
     api
       .addToCart(variant.id, 1, customAttributes)
       .then(() => {
@@ -247,16 +272,61 @@ export function ProductDetailPage({
               <div className="mt-6">
                 <p className="text-sm font-medium">Talla</p>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {variants.map((variant) => (
+                  {[...new Set(variants.map((variant) => String(variant.attributes.size ?? "Única")))].map((size) => (
                     <button
-                      key={variant.id}
+                      key={size}
                       type="button"
-                      onClick={() => setSelectedVariantId(variant.id)}
-                      className={`rounded-xl border px-4 py-2 ${selectedVariantId === variant.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
+                      onClick={() => {
+                        setSelectedSize(size);
+                        const nextVariants = variants.filter(
+                          (variant) => String(variant.attributes.size ?? "") === size,
+                        );
+                        const nextVariant =
+                          nextVariants.find(
+                            (variant) => !String(variant.attributes.dorsal ?? "").trim(),
+                          ) ?? nextVariants[0];
+                        setSelectedDorsal(String(nextVariant?.attributes.dorsal ?? ""));
+                        setSelectedVariantId(nextVariant?.id ?? "");
+                      }}
+                      className={`rounded-xl border px-4 py-2 ${selectedSize === size ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
                     >
-                      {String(variant.attributes.size ?? "Única")}
+                      {size}
                     </button>
                   ))}
+                </div>
+                {dorsalOptions.length > 0 && (
+                  <>
+                    <p className="mt-5 text-sm font-medium">Dorsal</p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {noDorsalVariant && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDorsal("")}
+                          className={`rounded-xl border px-4 py-2 ${!selectedDorsal ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
+                        >
+                          Sin dorsal
+                        </button>
+                      )}
+                      {dorsalOptions.map((dorsal) => (
+                        <button
+                          key={dorsal}
+                          type="button"
+                          onClick={() => setSelectedDorsal(dorsal)}
+                          className={`rounded-xl border px-4 py-2 ${selectedDorsal === dorsal ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
+                        >
+                          {dorsal}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="mt-5 grid gap-2 text-sm text-slate-600">
+                  {!hidesVersion && selectedVariant?.attributes.version && (
+                    <p>Versión: {String(selectedVariant.attributes.version)}</p>
+                  )}
+                  {selectedVariant?.attributes.tournament && (
+                    <p>Torneo: {String(selectedVariant.attributes.tournament)}</p>
+                  )}
                 </div>
               </div>
             )}

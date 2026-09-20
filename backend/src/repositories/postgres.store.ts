@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { createHash } from 'node:crypto';
-import { madeToOrderPrice } from '../config/pricing';
+import { immediatePrice, madeToOrderPrice } from '../config/pricing';
 
 export type DbCartItem = {
   id: string;
@@ -69,9 +69,9 @@ export async function addDbCartItem(cartLegacyId: string, variantLegacyId: strin
       [selectedVariantId, found.productId, `SKU-${selectedVariantId}`, JSON.stringify(attributes), found.price]
     );
   }
-  const unitPrice = found.productAvailabilityType === 'MADE_TO_ORDER' && attributes
-    ? madeToOrderPrice(Number(found.price), attributes)
-    : Number(found.price);
+  const unitPrice = found.productAvailabilityType === 'MADE_TO_ORDER'
+    ? madeToOrderPrice(Number(found.price), attributes ?? {})
+    : immediatePrice(Number(found.price), attributes);
   const legacyItemId = `cart-item-${cartLegacyId}-${selectedVariantId}`;
   await pool.query(
     `INSERT INTO cart_items (legacy_id, cart_id, variant_id, quantity, unit_price_snapshot)

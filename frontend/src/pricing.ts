@@ -10,3 +10,7 @@ export function madeToOrderPrice(basePrice: number, attributes: { longSleeves: b
     + (attributes.tournament ? MADE_TO_ORDER_SURCHARGES.tournament : 0)
     + (attributes.dorsal.trim() ? MADE_TO_ORDER_SURCHARGES.dorsal : 0);
 }
+
+export function immediatePrice(basePrice: number, dorsal: string) {
+  return basePrice + (dorsal.trim() ? MADE_TO_ORDER_SURCHARGES.dorsal : 0);
+}
