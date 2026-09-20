@@ -8,6 +8,7 @@ export type DbCartItem = {
   productName: string;
   variantLabel: string;
   availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
+  stock: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -33,7 +34,7 @@ export async function getDbCart(cartLegacyId: string): Promise<{ id: string; ite
         NULLIF(v.attributes->>'dorsal', ''),
         CASE WHEN v.attributes->>'long-sleeves' = 'true' THEN 'Manga larga' END
       ) AS "variantLabel",
-       v.availability_type AS "availabilityType",
+      v.availability_type AS "availabilityType", v.stock,
        ci.unit_price_snapshot AS "unitPrice", ci.quantity,
        ci.unit_price_snapshot * ci.quantity AS subtotal
      FROM cart_items ci
@@ -49,8 +50,9 @@ export async function getDbCart(cartLegacyId: string): Promise<{ id: string; ite
 
 export async function addDbCartItem(cartLegacyId: string, variantLegacyId: string, quantity: number, attributes?: Record<string, string | boolean>) {
   await ensureCart(cartLegacyId);
-  const variant = await pool.query<{ productName: string; price: number; active: boolean; productActive: boolean; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; productAvailabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; productId: string }>(
+  const variant = await pool.query<{ productName: string; price: number; stock: number; active: boolean; productActive: boolean; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; productAvailabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; productId: string }>(
     `SELECT p.name AS "productName", v.price, v.is_active AS active, p.is_active AS "productActive",
+       v.stock,
        v.availability_type AS "availabilityType", p.availability_type AS "productAvailabilityType", p.id AS "productId"
      FROM variants v JOIN products p ON p.id = v.product_id WHERE v.legacy_id = $1`,
     [variantLegacyId]
@@ -68,6 +70,17 @@ export async function addDbCartItem(cartLegacyId: string, variantLegacyId: strin
        ON CONFLICT (legacy_id) DO NOTHING`,
       [selectedVariantId, found.productId, `SKU-${selectedVariantId}`, JSON.stringify(attributes), found.price]
     );
+  }
+  if (found.productAvailabilityType === 'IMMEDIATE') {
+    const existing = await pool.query<{ quantity: number }>(
+      `SELECT ci.quantity FROM cart_items ci
+       JOIN carts c ON c.id = ci.cart_id
+       JOIN variants v ON v.id = ci.variant_id
+       WHERE c.legacy_id = $1 AND v.legacy_id = $2`,
+      [cartLegacyId, selectedVariantId]
+    );
+    const requestedQuantity = Number(existing.rows[0]?.quantity ?? 0) + quantity;
+    if (requestedQuantity > Number(found.stock)) throw new Error(`Insufficient stock for ${found.productName}`);
   }
   const unitPrice = found.productAvailabilityType === 'MADE_TO_ORDER'
     ? madeToOrderPrice(Number(found.price), attributes ?? {})

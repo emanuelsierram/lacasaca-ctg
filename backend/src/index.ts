@@ -206,8 +206,10 @@ const authRegisterSchema = z.object({
 
 const authLoginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8)
+  password: z.string().min(1)
 });
+
+const passwordSchema = z.string().regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/, 'Password does not meet strength requirements');
 
 app.get('/', (_req: Request, res: Response) => {
   res.json({
@@ -314,7 +316,7 @@ app.post('/api/checkout', async (req: Request, res: Response) => {
   try {
     await updateUserAddress(userId as string, parsed.data.customer.address);
     const result = await createDbOrder(cartId, parsed.data.paymentMethod, userId, parsed.data.customer.phone ?? null);
-    return res.status(201).json({ ...result, account: createdGuestAccount });
+    return res.status(201).json({ ...result, account: createdGuestAccount ? { ...createdGuestAccount, mustChangePassword: true } : undefined });
   } catch (error) {
     return res.status(422).json({ message: error instanceof Error ? error.message : 'Unable to create order' });
   }
@@ -343,6 +345,17 @@ app.post('/api/auth/register', async (req: Request, res: Response) => {
   }
 });
 
+app.post('/api/auth/password', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  const parsed = passwordSchema.safeParse(req.body.password);
+  if (!userId || !parsed.success) {
+    return res.status(400).json({ message: 'Authentication and a valid password are required' });
+  }
+  const updated = await pool.query('UPDATE users SET password_hash = $1 WHERE legacy_id = $2 AND is_active = true', [userService.hashPassword(parsed.data), userId]);
+  if (!updated.rowCount) return res.status(404).json({ message: 'User not found' });
+  return res.json({ message: 'Contraseña creada correctamente' });
+});
+
 app.post('/api/auth/login', async (req: Request, res: Response) => {
   const parsed = authLoginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -354,7 +367,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     ? { id: match.id, name: match.name, email: match.email, address: match.address, role: match.role }
     : null;
   if (!session) {
-    return res.status(401).json({ message: 'Invalid email or password' });
+    return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
   }
 
   return res.json({

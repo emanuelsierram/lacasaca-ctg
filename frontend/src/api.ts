@@ -32,11 +32,12 @@ export type CartItem = {
   availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   unitPrice: number;
   quantity: number;
+  stock?: number;
   subtotal: number;
 };
 
 export type Cart = { id: string; items: CartItem[]; total: number };
-export type Session = { id: string; name: string; email: string; address?: string; role: 'CUSTOMER' | 'ADMIN' };
+export type Session = { id: string; name: string; email: string; address?: string; role: 'CUSTOMER' | 'ADMIN'; mustChangePassword?: boolean };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
@@ -89,6 +90,9 @@ export const api = {
   },
   confirmPasswordReset(token: string, password: string) {
     return request<{ message: string }>('/auth/password-reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) });
+  },
+  setPassword(password: string) {
+    return request<{ message: string }>('/auth/password', { method: 'POST', body: JSON.stringify({ password }) });
   },
   listOrders() { return request<{ items: Array<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string }> }>('/orders/me'); },
   getOrder(id: string) { return request<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },
