@@ -19,7 +19,7 @@ const slides = [
   },
 ];
 
-function ProductStrip({ products, onOpenProduct }: { products: Product[]; onOpenProduct: (id: string) => void }) {
+function ProductStrip({ products, onOpenProduct, twoPerRow = false }: { products: Product[]; onOpenProduct: (id: string) => void; twoPerRow?: boolean }) {
   const [start, setStart] = useState(0);
   const carouselProducts = products.slice(0, 10);
   const visibleProducts = Array.from({ length: Math.min(4, carouselProducts.length) }, (_, index) => carouselProducts[(start + index) % carouselProducts.length]);
@@ -28,7 +28,7 @@ function ProductStrip({ products, onOpenProduct }: { products: Product[]; onOpen
   return (
     <div className="home-product-carousel">
       {canMove && <button type="button" className="home-product-control home-product-control-prev" onClick={() => setStart((current) => (current - 1 + carouselProducts.length) % carouselProducts.length)} aria-label="Productos anteriores">←</button>}
-      <div className="home-product-strip">
+      <div className={`home-product-strip${twoPerRow ? ' home-product-strip-two' : ''}`}>
       {visibleProducts.map((product) => {
         const variant = product.variants.find((item) => item.isActive);
         const image = product.images?.[0] ?? product.featuredImage;
@@ -90,8 +90,8 @@ export function HomePage({ onOpenProduct, onOpenCatalog }: { onOpenProduct: (id:
           <h1>Lacasaca Cartagena</h1>
           <p>Las mejores casacas de fútbol de la más alta calidad con los mejores precios del mercado. Cuidando cada detalle para ofrecerte una camiseta que esté a la altura de tu pasión.</p>
           <div className="home-delivery"><DeliveryIcon /><span>DOMICILIO GRATIS A TODA CARTAGENA</span></div>
-          <button type="button" className="home-hero-action" onClick={() => document.getElementById('inmediata')?.scrollIntoView({ behavior: 'smooth' })}>Explorar colección <span aria-hidden="true">↓</span></button>
         </div>
+        <button type="button" className="home-hero-action" onClick={() => document.getElementById('inmediata')?.scrollIntoView({ behavior: 'smooth' })}>Explorar colección <span aria-hidden="true">↓</span></button>
       </section>
 
       <section className="home-carousel-section" aria-label="Colección destacada">
@@ -101,12 +101,12 @@ export function HomePage({ onOpenProduct, onOpenCatalog }: { onOpenProduct: (id:
 
       <section id="inmediata" className="home-products-section">
         <div className="home-section-heading"><div><p className="home-kicker">Para hoy</p><h2>Nuestras mejores Casacas</h2><p>Entrega inmediata con domicilio gratis a toda Cartagena, paga por transferencia o en efectivo al recibir el producto.</p></div><button type="button" onClick={onOpenCatalog} className="home-see-all">Ver catálogo <span aria-hidden="true">↗</span></button></div>
-        {error ? <p className="home-api-message">{error}. Verifica que el backend esté iniciado.</p> : immediate.length ? <ProductStrip products={immediate} onOpenProduct={onOpenProduct} /> : <p className="home-api-message">Cargando nuestra colección...</p>}
+        {error ? <p className="home-api-message">{error}. Verifica que el backend esté iniciado.</p> : immediate.length ? <ProductStrip products={immediate} onOpenProduct={onOpenProduct} twoPerRow /> : <p className="home-api-message">Cargando nuestra colección...</p>}
       </section>
 
       <section className="home-products-section home-order-section">
         <div className="home-section-heading"><div><p className="home-kicker">Diseñada para ti</p><h2>Casacas a pedido</h2><p>Casacas disponibles de 15 a 20 días, solicítala pagando solo el 30% del valor total. Personalízala a tu gusto.</p></div><button type="button" onClick={onOpenCatalog} className="home-see-all">Ver catálogo <span aria-hidden="true">↗</span></button></div>
-        {madeToOrder.length ? <ProductStrip products={madeToOrder} onOpenProduct={onOpenProduct} /> : <p className="home-api-message">Próximamente más diseños para personalizar.</p>}
+        {madeToOrder.length ? <ProductStrip products={madeToOrder} onOpenProduct={onOpenProduct} twoPerRow /> : <p className="home-api-message">Próximamente más diseños para personalizar.</p>}
       </section>
 
       <section className="home-contact-section"><div><p className="home-kicker">Tu próxima casaca existe</p><h2>¿No encuentras tu casaca favorita?</h2><p>Puedes decirnos la referencia y te la hacemos llegar.</p></div><a className="whatsapp-button" href={whatsapp} target="_blank" rel="noreferrer"><WhatsAppIcon /> Contactar por WhatsApp</a></section>

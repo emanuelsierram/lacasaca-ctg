@@ -30,10 +30,12 @@ const emptyMadeToOrder: MadeToOrderAttributes = {
 export function ProductDetailPage({
   productId,
   onCartChange,
+  onCheckout,
   onBack,
 }: {
   productId: string;
-  onCartChange: () => void;
+  onCartChange: () => Promise<void>;
+  onCheckout: () => void;
   onBack: () => void;
 }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -105,7 +107,7 @@ export function ProductDetailPage({
     field: keyof MadeToOrderAttributes,
     value: string | boolean,
   ) => setAttributes((current) => ({ ...current, [field]: value }));
-  const addToCart = () => {
+  const addToCart = (goToCheckout = false) => {
     const variant = isMadeToOrder ? baseVariant : selectedVariant;
     if (!variant || !available) {
       setMessage("Selecciona una talla para continuar.");
@@ -122,9 +124,13 @@ export function ProductDetailPage({
       : { ...selectedVariant.attributes, dorsal: selectedDorsal };
     api
       .addToCart(variant.id, 1, customAttributes)
-      .then(() => {
+      .then(async () => {
+        await onCartChange();
+        if (goToCheckout) {
+          onCheckout();
+          return;
+        }
         setMessage("Producto agregado al carrito.");
-        onCartChange();
       })
       .catch((reason: Error) => setMessage(reason.message));
   };
@@ -330,19 +336,29 @@ export function ProductDetailPage({
                 </div>
               </div>
             )}
-            <div className="mt-6 flex items-end justify-between gap-4 border-t border-slate-200 pt-5">
+            <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-5">
               <div>
                 <p className="text-sm text-slate-500">Precio</p>
                 <p className="text-3xl font-bold">{formatCOP(price)}</p>
               </div>
-              <button
-                type="button"
-                disabled={!available}
-                onClick={addToCart}
-                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {available ? "Agregar al carrito" : "Selecciona una talla"}
-              </button>
+              <div className="flex w-full flex-col gap-2 sm:max-w-md">
+                <button
+                  type="button"
+                  disabled={!available}
+                  onClick={() => addToCart()}
+                  className="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {available ? "Agregar al carrito" : "Selecciona una talla"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!available}
+                  onClick={() => addToCart(true)}
+                  className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  Comprar ahora
+                </button>
+              </div>
             </div>
             {message && (
               <p className="mt-3 text-sm text-slate-600">{message}</p>
