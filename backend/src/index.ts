@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { initializeDatabase, loadState, pool, saveState } from './config/database';
 import { orderService } from './services/order.service';
 import { userService, type UserRecord } from './services/user.service';
-import { addDbCartItem, advanceDbOrderStatus, cancelDbOrder, confirmDbPayment, createDbOrder, getDbCart, getDbOrder, listDbOrders, removeDbCartItem, updateDbCartItem } from './repositories/postgres.store';
+import { addDbCartItem, advanceDbOrderStatus, cancelDbAdminOrder, cancelDbOrder, confirmDbPayment, createDbAdminOrder, createDbOrder, createDbPayment, getDbCart, getDbOrder, listDbOrders, listDbPayments, removeDbCartItem, updateDbAdminOrder, updateDbCartItem, updateDbPaymentStatus } from './repositories/postgres.store';
 
 dotenv.config();
 
@@ -124,6 +124,25 @@ async function listCatalogFromDatabase() {
   return result.rows;
 }
 
+async function listAdminCatalogFromDatabase(category?: string, availabilityType?: string, search = '') {
+  const result = await pool.query(`
+    SELECT p.legacy_id AS id, p.name, p.slug, p.description, c.name AS category,
+      p.availability_type AS "availabilityType", p.is_active AS "isActive",
+      COALESCE((SELECT jsonb_agg(pi.image_url ORDER BY pi.sort_order, pi.created_at)
+        FROM product_images pi WHERE pi.product_id = p.id AND pi.is_active = true), '[]'::jsonb) AS images,
+      COALESCE(jsonb_agg(jsonb_build_object('id', v.legacy_id, 'sku', v.sku, 'attributes', v.attributes,
+        'price', v.price, 'stock', v.stock, 'isActive', v.is_active, 'availabilityType', v.availability_type)
+        ORDER BY v.created_at) FILTER (WHERE v.legacy_id IS NOT NULL), '[]'::jsonb) AS variants
+    FROM products p JOIN categories c ON c.id = p.category_id
+    LEFT JOIN variants v ON v.product_id = p.id
+    WHERE ($1::text IS NULL OR c.name::text = $1)
+      AND ($2::text IS NULL OR p.availability_type::text = $2)
+      AND ($3 = '' OR lower(p.name) LIKE '%' || lower($3) || '%')
+    GROUP BY p.id, c.name ORDER BY p.created_at DESC
+  `, [category ?? null, availabilityType ?? null, search]);
+  return result.rows;
+}
+
 async function getCatalogProductFromDatabase(id: string) {
   const result = await pool.query(`
     SELECT p.legacy_id AS id, p.name, p.slug, p.description, c.name AS category,
@@ -179,7 +198,15 @@ async function findVariant(variantId: string) {
   return result.rows[0] ?? null;
 }
 
-const isAdmin = (userId?: string | null) => !!userId && adminUsers.has(userId);
+async function isAdmin(userId?: string | null) {
+  if (!userId) return false;
+  if (adminUsers.has(userId)) return true;
+  const result = await pool.query<{ role: 'CUSTOMER' | 'ADMIN' }>(
+    'SELECT role FROM users WHERE legacy_id = $1 AND is_active = true',
+    [userId]
+  );
+  return result.rows[0]?.role === 'ADMIN';
+}
 
 const cartItemSchema = z.object({
   variantId: z.string().min(1),
@@ -467,9 +494,187 @@ app.post('/api/orders/:id/cancel', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/admin/catalog/products', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' ? req.query.category.toUpperCase() : undefined;
+  const availabilityType = typeof req.query.availabilityType === 'string' && req.query.availabilityType !== 'ALL' ? req.query.availabilityType.toUpperCase() : undefined;
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  return res.json({ items: await listAdminCatalogFromDatabase(category, availabilityType, search) });
+});
+
+app.post('/api/admin/catalog/products', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const { name, slug, description, category, availabilityType, variants = [] } = req.body as Record<string, any>;
+  if (!name || !slug || !description || !category || !availabilityType || !Array.isArray(variants)) {
+    return res.status(400).json({ message: 'Product name, slug, description, category, availability and variants are required' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const productId = `prod-${Date.now()}`;
+    const product = await client.query<{ id: string }>(
+      `INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type)
+       VALUES ($1, $2, $3, $4, (SELECT id FROM categories WHERE name = $5::product_category), $6::availability_type) RETURNING id`,
+      [productId, slug, name, description, category, availabilityType]
+    );
+    for (const [index, variant] of variants.entries()) {
+      await client.query(
+        `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::availability_type)`,
+        [variant.id ?? `var-${Date.now()}-${index}`, product.rows[0].id, variant.sku?.trim() || `SKU-${productId}-${index}`, JSON.stringify(variant.attributes ?? {}), Number(variant.price), Number(variant.stock ?? 0), variant.isActive !== false, availabilityType]
+      );
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ id: productId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to create product' });
+  } finally {
+    client.release();
+  }
+});
+
+app.patch('/api/admin/catalog/products/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { name, slug, description, category, availabilityType, isActive } = req.body as Record<string, any>;
+  const result = await pool.query(
+    `UPDATE products SET name = COALESCE($1, name), slug = COALESCE($2, slug), description = COALESCE($3, description),
+      category_id = COALESCE((SELECT id FROM categories WHERE name = $4::product_category), category_id),
+      availability_type = COALESCE($5::availability_type, availability_type),
+      is_active = COALESCE($6, is_active), updated_at = now() WHERE legacy_id = $7`,
+    [name ?? null, slug ?? null, description ?? null, category ?? null, availabilityType ?? null, isActive ?? null, productId]
+  );
+  if (!result.rowCount) return res.status(404).json({ message: 'Product not found' });
+  return res.json({ id: productId });
+});
+
+app.delete('/api/admin/catalog/products/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const result = await pool.query('UPDATE products SET is_active = false, updated_at = now() WHERE legacy_id = $1', [productId]);
+  await pool.query('UPDATE variants SET is_active = false, updated_at = now() WHERE product_id = (SELECT id FROM products WHERE legacy_id = $1)', [productId]);
+  if (!result.rowCount) return res.status(404).json({ message: 'Product not found' });
+  return res.status(204).send();
+});
+
+app.post('/api/admin/catalog/products/:id/variants', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { sku, attributes = {}, price, stock = 0, isActive = true } = req.body as Record<string, any>;
+  if (!sku || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) return res.status(400).json({ message: 'Invalid variant data' });
+  const id = `var-${Date.now()}`;
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
+     SELECT $1, p.id, $2, $3::jsonb, $4, $5, $6, p.availability_type FROM products p WHERE p.legacy_id = $7 RETURNING legacy_id AS id`,
+    [id, sku, JSON.stringify(attributes), Number(price), Number(stock), isActive, productId]
+  );
+  if (!result.rowCount) return res.status(404).json({ message: 'Product not found' });
+  return res.status(201).json({ id });
+});
+
+app.delete('/api/admin/catalog/variants/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const result = await pool.query('UPDATE variants SET is_active = false, updated_at = now() WHERE legacy_id = $1', [variantId]);
+  if (!result.rowCount) return res.status(404).json({ message: 'Variant not found' });
+  return res.status(204).send();
+});
+
+app.get('/api/admin/users', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const result = await pool.query('SELECT legacy_id AS id, name, email, address, role, is_active AS "isActive" FROM users ORDER BY created_at DESC');
+  return res.json({ items: result.rows });
+});
+
+app.post('/api/admin/users', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const { name, email, password, address = '', role = 'CUSTOMER' } = req.body as Record<string, any>;
+  if (!name || !email || !password) return res.status(400).json({ message: 'Name, email and password are required' });
+  try {
+    const created = userService.registerUser(users, { name, email, password });
+    const createdRecord = users.find((user) => user.id === created.id);
+    if (createdRecord) {
+      createdRecord.address = address;
+      createdRecord.role = role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER';
+    }
+    await syncUsersToDatabase();
+    await persistState();
+    return res.status(201).json({ id: created.id });
+  } catch (error) {
+    return res.status(409).json({ message: error instanceof Error ? error.message : 'Unable to create user' });
+  }
+});
+
+app.patch('/api/admin/users/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const targetId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { name, email, address, role, isActive } = req.body as Record<string, any>;
+  const result = await pool.query(
+    `UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), address = COALESCE($3, address),
+      role = COALESCE($4::user_role, role), is_active = COALESCE($5, is_active) WHERE legacy_id = $6`,
+    [name ?? null, email ?? null, address ?? null, role ?? null, isActive ?? null, targetId]
+  );
+  if (!result.rowCount) return res.status(404).json({ message: 'User not found' });
+  return res.json({ id: targetId });
+});
+
+app.delete('/api/admin/users/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const targetId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  if (targetId === userId) return res.status(400).json({ message: 'You cannot deactivate your own account' });
+  const result = await pool.query('UPDATE users SET is_active = false WHERE legacy_id = $1', [targetId]);
+  if (!result.rowCount) return res.status(404).json({ message: 'User not found' });
+  return res.status(204).send();
+});
+
+app.get('/api/admin/orders', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const result = await pool.query(`
+    SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
+      o.total, o.shipping_cost AS "shippingCost", o.customer_phone AS "customerPhone", o.created_at AS "createdAt",
+      u.legacy_id AS "userId", u.name AS "userName", u.email
+    FROM orders o LEFT JOIN users u ON u.id = o.user_id ORDER BY o.created_at DESC`);
+  return res.json({ items: result.rows.map((order) => ({ ...order, total: Number(order.total), shippingCost: Number(order.shippingCost), subtotal: Number(order.total) - Number(order.shippingCost) })) });
+});
+
+app.post('/api/admin/orders', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const { userLegacyId, customerPhone, notes, total, paymentMethod, items = [] } = req.body as { userLegacyId?: string; customerPhone?: string; notes?: string; total?: number; paymentMethod?: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER'; items?: Array<{ variantId: string; quantity: number }> };
+  if (!paymentMethod || !Array.isArray(items)) return res.status(400).json({ message: 'Payment method and items are required' });
+  try { return res.status(201).json(await createDbAdminOrder({ userLegacyId, customerPhone, notes, total, paymentMethod, items })); }
+  catch (error) { return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to create order' }); }
+});
+
+app.patch('/api/admin/orders/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  try { return res.json(await updateDbAdminOrder(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, req.body)); }
+  catch (error) { return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to edit order' }); }
+});
+
+app.delete('/api/admin/orders/:id', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  try { return res.json(await cancelDbAdminOrder(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id)); }
+  catch (error) { return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to cancel order' }); }
+});
+
 app.post('/api/admin/payments/:id/confirm', async (req: Request, res: Response) => {
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
-  if (!isAdmin(userId)) {
+  if (!(await isAdmin(userId))) {
     return res.status(403).json({ message: 'Admin access required' });
   }
 
@@ -480,24 +685,29 @@ app.post('/api/admin/payments/:id/confirm', async (req: Request, res: Response) 
   }
 });
 
-app.get('/api/admin/catalog/products', async (req: Request, res: Response) => {
+app.get('/api/admin/payments', async (req: Request, res: Response) => {
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
-  if (!isAdmin(userId)) {
-    return res.status(403).json({ message: 'Admin access required' });
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  return res.json({ items: await listDbPayments() });
+});
+
+app.patch('/api/admin/payments/:id/status', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
+  const status = typeof req.body.status === 'string' ? req.body.status : '';
+  try {
+    return res.json(await updateDbPaymentStatus(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, status));
+  } catch (error) {
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to update payment' });
   }
-  return res.json({ items: await listCatalogFromDatabase() });
 });
 
 app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response) => {
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
-  if (!isAdmin(userId)) {
+  if (!(await isAdmin(userId))) {
     return res.status(403).json({ message: 'Admin access required' });
   }
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const found = await findVariant(variantId);
-  if (!found) {
-    return res.status(404).json({ message: 'Variant not found' });
-  }
   const { price, stock, isActive } = req.body as { price?: unknown; stock?: unknown; isActive?: unknown };
   if (price !== undefined && (typeof price !== 'number' || !Number.isFinite(price) || price < 0)) {
     return res.status(400).json({ message: 'Price must be a non-negative number' });
@@ -505,20 +715,71 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
   if (stock !== undefined && (!Number.isInteger(stock) || (stock as number) < 0)) {
     return res.status(400).json({ message: 'Stock must be a non-negative integer' });
   }
-  const updated = await pool.query(
-    `UPDATE variants SET price = COALESCE($1, price), stock = COALESCE($2, stock),
-       is_active = COALESCE($3, is_active), updated_at = now() WHERE legacy_id = $4`,
-    [price ?? null, stock ?? null, isActive ?? null, variantId]
-  );
-  if (!updated.rowCount) {
-    return res.status(404).json({ message: 'Variant not found' });
+  if (isActive !== undefined && typeof isActive !== 'boolean') {
+    return res.status(400).json({ message: 'isActive must be a boolean' });
   }
-  return res.json(await findVariant(variantId));
+  if (price === undefined && stock === undefined && isActive === undefined) {
+    return res.status(400).json({ message: 'At least one variant field is required' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const selected = await client.query<{ productId: string }>(
+      'SELECT product_id AS "productId" FROM variants WHERE legacy_id = $1 FOR UPDATE',
+      [variantId]
+    );
+    const productId = selected.rows[0]?.productId;
+    if (!productId) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Variant not found' });
+    }
+
+    const values: unknown[] = [];
+    const changes: string[] = [];
+    if (price !== undefined) {
+      values.push(price);
+      changes.push(`price = $${values.length}`);
+    }
+    if (stock !== undefined) {
+      values.push(stock);
+      changes.push(`stock = $${values.length}`);
+    }
+    if (isActive !== undefined) {
+      values.push(isActive);
+      changes.push(`is_active = $${values.length}`);
+    }
+    values.push(variantId);
+    const updated = await client.query(
+      `UPDATE variants SET ${changes.join(', ')}, updated_at = now() WHERE legacy_id = $${values.length}`,
+      values
+    );
+    if (!updated.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Variant not found' });
+    }
+
+    if (isActive !== undefined) {
+      await client.query(
+        `UPDATE products SET is_active = EXISTS (
+           SELECT 1 FROM variants WHERE product_id = $1 AND is_active = true
+         ), updated_at = now() WHERE id = $1`,
+        [productId]
+      );
+    }
+    await client.query('COMMIT');
+    return res.json(await findVariant(variantId));
+  } catch (error) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to update variant' });
+  } finally {
+    client.release();
+  }
 });
 
 app.patch('/api/admin/orders/:id/status', async (req: Request, res: Response) => {
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
-  if (!isAdmin(userId)) {
+  if (!(await isAdmin(userId))) {
     return res.status(403).json({ message: 'Admin access required' });
   }
 

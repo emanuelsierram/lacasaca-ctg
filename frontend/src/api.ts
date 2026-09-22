@@ -1,6 +1,12 @@
 export type Category = 'RETROS' | 'ACTUALES' | 'SELECCIONES' | 'FEMENINO' | 'NINOS';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
 
+export function paymentMethodLabel(method: PaymentMethod) {
+  return method === 'CASH_ON_DELIVERY'
+    ? 'Efectivo contraentrega'
+    : 'Transferencia';
+}
+
 export type Variant = {
   id: string;
   sku?: string;
@@ -97,8 +103,30 @@ export const api = {
   listOrders() { return request<{ items: Array<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string }> }>('/orders/me'); },
   getOrder(id: string) { return request<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },
   cancelOrder(id: string) { return request<{ orderId: string; status: string }>('/orders/' + id + '/cancel', { method: 'POST' }); }
-  ,adminProducts() { return request<{ items: Product[] }>('/admin/catalog/products'); }
+  ,adminProducts(params: { search?: string; category?: string; availabilityType?: string } = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.category && params.category !== 'ALL') query.set('category', params.category);
+    if (params.availabilityType && params.availabilityType !== 'ALL') query.set('availabilityType', params.availabilityType);
+    return request<{ items: Product[] }>(`/admin/catalog/products?${query}`);
+  }
+  ,createAdminProduct(payload: { name: string; slug: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; variants: Array<{ sku?: string; attributes: Record<string, string | boolean>; price: number; stock: number }> }) { return request<{ id: string }>('/admin/catalog/products', { method: 'POST', body: JSON.stringify(payload) }); }
+  ,updateAdminProduct(id: string, payload: Partial<{ name: string; slug: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; isActive: boolean }>) { return request<{ id: string }>(`/admin/catalog/products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+  ,deleteAdminProduct(id: string) { return request<void>(`/admin/catalog/products/${id}`, { method: 'DELETE' }); }
   ,updateAdminVariant(id: string, payload: { price?: number; stock?: number; isActive?: boolean }) { return request<Variant>(`/admin/catalog/variants/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+  ,createAdminVariant(productId: string, payload: { sku: string; attributes: Record<string, string | boolean>; price: number; stock: number }) { return request<{ id: string }>(`/admin/catalog/products/${productId}/variants`, { method: 'POST', body: JSON.stringify(payload) }); }
+  ,deleteAdminVariant(id: string) { return request<void>(`/admin/catalog/variants/${id}`, { method: 'DELETE' }); }
+  ,adminOrders() { return request<{ items: Array<{ id: string; status: string; paymentStatus: string; paymentMethod: PaymentMethod; total: number; shippingCost: number; createdAt: string; customerPhone?: string; userName?: string; email?: string }> }>('/admin/orders'); }
+    ,createAdminOrder(payload: { userLegacyId?: string; customerPhone?: string; notes?: string; total?: number; paymentMethod: PaymentMethod; items?: Array<{ variantId: string; quantity: number }> }) { return request<{ orderId: string; status: string; paymentStatus: string; total: number }>('/admin/orders', { method: 'POST', body: JSON.stringify(payload) }); }
+    ,updateAdminOrder(id: string, payload: { customerPhone?: string; paymentMethod?: PaymentMethod }) { return request<{ id: string }>(`/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+  ,updateAdminOrderStatus(id: string, status: string) { return request<{ id: string; status: string }>(`/admin/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
+  ,deleteAdminOrder(id: string) { return request<void>(`/admin/orders/${id}`, { method: 'DELETE' }); }
+  ,adminPayments() { return request<{ items: Array<{ id: string; status: string; method: PaymentMethod; externalReference?: string; orderId: string; orderStatus: string; total: number; userName?: string; email?: string }> }>('/admin/payments'); }
+  ,updateAdminPaymentStatus(id: string, status: string) { return request<{ paymentId: string; paymentStatus: string; orderId: string; orderStatus: string }>(`/admin/payments/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
+  ,adminUsers() { return request<{ items: Array<{ id: string; name: string; email: string; address: string; role: 'CUSTOMER' | 'ADMIN'; isActive: boolean }> }>('/admin/users'); }
+  ,createAdminUser(payload: { name: string; email: string; password: string; address?: string; role?: 'CUSTOMER' | 'ADMIN' }) { return request<{ id: string }>('/admin/users', { method: 'POST', body: JSON.stringify(payload) }); }
+  ,updateAdminUser(id: string, payload: Partial<{ name: string; email: string; address: string; role: 'CUSTOMER' | 'ADMIN'; isActive: boolean }>) { return request<{ id: string }>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
+  ,deleteAdminUser(id: string) { return request<void>(`/admin/users/${id}`, { method: 'DELETE' }); }
 };
 
 export function variantLabel(variant: Variant) {

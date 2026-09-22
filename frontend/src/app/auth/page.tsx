@@ -12,6 +12,7 @@ export function AuthPage({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [resetToken, setResetToken] = useState("");
@@ -133,14 +134,28 @@ export function AuthPage({
             mode === "reset-confirm") && (
             <label className="block text-sm font-medium">
               {mode === "reset-confirm" ? "Nueva contraseña" : "Contraseña"}
-              <input
-                required
-                minLength={mode === "login" ? 1 : 8}
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
-              />
+              <div className="relative mt-1">
+                <input
+                  required
+                  minLength={mode === "login" ? 1 : 8}
+                  type={passwordVisible ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((visible) => !visible)}
+                  aria-label={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  aria-pressed={passwordVisible}
+                  title={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                    {passwordVisible ? <><path d="M3 3l18 18" strokeLinecap="round" /><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" strokeLinecap="round" /><path d="M9.9 4.3A10.8 10.8 0 0 1 12 4c5.2 0 8.7 4 10 8a12.7 12.7 0 0 1-3.2 5.1M6.2 6.2C4.1 7.6 2.7 10 2 12c1.3 4 4.8 8 10 8 1 0 2-.2 2.9-.5" strokeLinecap="round" strokeLinejoin="round" /></> : <><path d="M2 12s3.5-8 10-8 10 8 10 8-3.5 8-10 8S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>}
+                  </svg>
+                </button>
+              </div>
               {mode !== "login" && (
                 <span className="mt-1 block text-xs text-slate-500">
                   Mínimo 8 caracteres, una mayúscula, un número y un símbolo.

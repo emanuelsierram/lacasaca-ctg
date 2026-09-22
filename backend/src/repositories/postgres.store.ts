@@ -177,6 +177,85 @@ export async function listDbOrders(userLegacyId: string) {
   return result.rows.map((order) => ({ ...order, total: Number(order.total), shippingCost: Number(order.shippingCost), subtotal: Number(order.total) - Number(order.shippingCost) }));
 }
 
+export async function createDbAdminOrder(input: { userLegacyId?: string | null; customerPhone?: string | null; notes?: string | null; total?: number; paymentMethod: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER'; items: Array<{ variantId: string; quantity: number }> }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const orderItems: Array<{ variantUuid: string; productUuid: string; quantity: number; price: number; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER' }> = [];
+    for (const item of input.items) {
+      const found = await client.query<{ variantUuid: string; productUuid: string; price: number; stock: number; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER' }>(
+        `SELECT v.id AS "variantUuid", v.product_id AS "productUuid", v.price, v.stock, v.availability_type AS "availabilityType"
+         FROM variants v JOIN products p ON p.id = v.product_id
+         WHERE v.legacy_id = $1 AND v.is_active = true AND p.is_active = true FOR UPDATE`, [item.variantId]
+      );
+      if (!found.rowCount || !Number.isInteger(item.quantity) || item.quantity <= 0) throw new Error('Variant or quantity is invalid');
+      const variant = found.rows[0];
+      if (variant.availabilityType === 'IMMEDIATE' && Number(variant.stock) < item.quantity) throw new Error('Insufficient stock');
+      if (variant.availabilityType === 'IMMEDIATE') await client.query('UPDATE variants SET stock = stock - $1, updated_at = now() WHERE id = $2', [item.quantity, variant.variantUuid]);
+      orderItems.push({ ...variant, quantity: item.quantity, price: Number(variant.price) });
+    }
+    if (!orderItems.length && (!input.total || input.total <= 0)) throw new Error('Manual orders require a positive total');
+    const subtotal = orderItems.reduce((total, item) => total + item.price * item.quantity, 0);
+    const shipping = orderItems.length ? 9990 : 0;
+    const orderTotal = input.total && input.total > 0 ? input.total : subtotal + shipping;
+    const orderLegacyId = `order-admin-${Date.now()}`;
+    const order = await client.query<{ id: string }>(
+      `INSERT INTO orders (legacy_id, user_id, customer_phone, notes, status, payment_method, payment_status, total, shipping_cost)
+       VALUES ($1, (SELECT id FROM users WHERE legacy_id = $2), $3, $4, 'PENDIENTE', $5::payment_method, 'PENDIENTE', $6, $7) RETURNING id`,
+      [orderLegacyId, input.userLegacyId ?? null, input.customerPhone ?? null, input.notes ?? null, input.paymentMethod, orderTotal, shipping]
+    );
+    for (const item of orderItems) await client.query(
+      `INSERT INTO order_items (order_id, variant_id, product_id, quantity, unit_price_snapshot, subtotal) VALUES ($1, $2, $3, $4, $5, $4 * $5)`,
+      [order.rows[0].id, item.variantUuid, item.productUuid, item.quantity, item.price]
+    );
+    await client.query('INSERT INTO payments (legacy_id, order_id, method, status) VALUES ($1, $2, $3::payment_method, \'PENDIENTE\')', [orderLegacyId, order.rows[0].id, input.paymentMethod]);
+    await client.query('COMMIT');
+    return { orderId: orderLegacyId, status: 'PENDIENTE', paymentStatus: 'PENDIENTE', total: Number(orderTotal.toFixed(2)) };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
+}
+
+export async function updateDbAdminOrder(orderLegacyId: string, input: { customerPhone?: string; paymentMethod?: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER' }) {
+  const result = await pool.query(
+    `UPDATE orders SET customer_phone = COALESCE($1, customer_phone), payment_method = COALESCE($2::payment_method, payment_method), updated_at = now()
+     WHERE legacy_id = $3 AND status = 'PENDIENTE' RETURNING legacy_id AS id`,
+    [input.customerPhone ?? null, input.paymentMethod ?? null, orderLegacyId]
+  );
+  if (!result.rowCount) throw new Error('Only pending orders can be edited');
+  return result.rows[0];
+}
+
+export async function cancelDbAdminOrder(orderLegacyId: string) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const order = await client.query<{ id: string; status: string }>('SELECT id, status FROM orders WHERE legacy_id = $1 FOR UPDATE', [orderLegacyId]);
+    if (!order.rowCount) throw new Error('Order not found');
+    if (['ENTREGADO', 'CANCELADO'].includes(order.rows[0].status)) throw new Error('Order cannot be cancelled');
+    const items = await client.query<{ variantId: string; quantity: number }>('SELECT variant_id AS "variantId", quantity FROM order_items WHERE order_id = $1', [order.rows[0].id]);
+    for (const item of items.rows) await client.query('UPDATE variants SET stock = stock + $1, updated_at = now() WHERE id = $2', [item.quantity, item.variantId]);
+    await client.query("UPDATE orders SET status = 'CANCELADO', payment_status = 'CANCELADO', updated_at = now() WHERE id = $1", [order.rows[0].id]);
+    await client.query("UPDATE payments SET status = 'CANCELADO' WHERE order_id = $1", [order.rows[0].id]);
+    await client.query('COMMIT');
+    return { orderId: orderLegacyId, status: 'CANCELADO' };
+  } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+}
+
+export async function createDbPayment(orderLegacyId: string, method: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER', externalReference?: string | null) {
+  const result = await pool.query<{ id: string }>(
+    `INSERT INTO payments (legacy_id, order_id, method, status, external_reference)
+     SELECT $1, o.id, $2::payment_method, 'PENDIENTE', $3 FROM orders o
+     WHERE o.legacy_id = $4 AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.order_id = o.id)
+     RETURNING legacy_id AS id`,
+    [`payment-${Date.now()}`, method, externalReference ?? null, orderLegacyId]
+  );
+  if (!result.rowCount) throw new Error('Order not found or already has a payment');
+  await pool.query("UPDATE orders SET payment_status = 'PENDIENTE' WHERE legacy_id = $1", [orderLegacyId]);
+  return { id: result.rows[0].id, orderId: orderLegacyId, status: 'PENDIENTE' };
+}
+
 export async function getDbOrder(orderLegacyId: string, userLegacyId: string) {
   const order = await pool.query(
      `SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
@@ -222,17 +301,61 @@ export async function cancelDbOrder(orderLegacyId: string, userLegacyId: string)
 }
 
 export async function confirmDbPayment(orderLegacyId: string) {
-  const result = await pool.query("UPDATE payments SET status = 'CONFIRMADO', confirmed_at = now() WHERE legacy_id = $1 AND status = 'PENDIENTE' RETURNING order_id", [orderLegacyId]);
-  if (!result.rowCount) throw new Error('Payment already confirmed or not found');
-  await pool.query("UPDATE orders SET payment_status = 'CONFIRMADO', updated_at = now() WHERE id = $1", [result.rows[0].order_id]);
-  return { paymentStatus: 'CONFIRMADO', orderStatus: 'PENDIENTE' };
+  return updateDbPaymentStatus(orderLegacyId, 'CONFIRMADO');
 }
 
 export async function advanceDbOrderStatus(orderLegacyId: string, nextStatus: string) {
   const allowed: Record<string, string[]> = { PENDIENTE: ['EN_PREPARACION', 'CANCELADO'], EN_PREPARACION: ['ENVIADO', 'CANCELADO'], ENVIADO: ['ENTREGADO'], ENTREGADO: [], CANCELADO: [] };
-  const current = await pool.query<{ id: string; status: string }>('SELECT id, status FROM orders WHERE legacy_id = $1', [orderLegacyId]);
+  const current = await pool.query<{ id: string; status: string; paymentStatus: string }>('SELECT id, status, payment_status AS "paymentStatus" FROM orders WHERE legacy_id = $1', [orderLegacyId]);
   if (!current.rowCount) throw new Error('Order not found');
   if (!allowed[current.rows[0].status]?.includes(nextStatus)) throw new Error('Invalid order status transition');
+  if (['EN_PREPARACION', 'ENVIADO', 'ENTREGADO'].includes(nextStatus) && current.rows[0].paymentStatus !== 'CONFIRMADO') {
+    throw new Error('Payment must be confirmed before advancing the order');
+  }
   await pool.query('UPDATE orders SET status = $1::order_status, updated_at = now() WHERE id = $2', [nextStatus, current.rows[0].id]);
   return { orderId: orderLegacyId, status: nextStatus };
+}
+
+export async function listDbPayments() {
+  const result = await pool.query(`
+    SELECT p.legacy_id AS id, p.status, p.method, p.external_reference AS "externalReference",
+      p.confirmed_at AS "confirmedAt", o.legacy_id AS "orderId", o.status AS "orderStatus",
+      o.payment_status AS "orderPaymentStatus", o.total, u.name AS "userName", u.email
+    FROM payments p
+    JOIN orders o ON o.id = p.order_id
+    LEFT JOIN users u ON u.id = o.user_id
+    ORDER BY p.created_at DESC`);
+  return result.rows.map((payment) => ({ ...payment, total: Number(payment.total) }));
+}
+
+export async function updateDbPaymentStatus(paymentLegacyId: string, nextStatus: string) {
+  const allowed = ['PENDIENTE', 'CONFIRMADO', 'RECHAZADO', 'EXPIRADO', 'CANCELADO'];
+  if (!allowed.includes(nextStatus)) throw new Error('Invalid payment status');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const payment = await client.query<{ orderId: string; orderLegacyId: string; orderStatus: string }>(
+      `SELECT p.order_id AS "orderId", o.legacy_id AS "orderLegacyId", o.status AS "orderStatus"
+       FROM payments p JOIN orders o ON o.id = p.order_id WHERE p.legacy_id = $1 FOR UPDATE`,
+      [paymentLegacyId]
+    );
+    if (!payment.rowCount) throw new Error('Payment not found');
+    if (nextStatus === 'PENDIENTE' && payment.rows[0].orderStatus !== 'PENDIENTE') throw new Error('Only pending orders can have a pending payment');
+    await client.query(
+      `UPDATE payments SET status = $1::payment_status, confirmed_at = CASE WHEN $1 = 'CONFIRMADO' THEN now() ELSE confirmed_at END WHERE legacy_id = $2`,
+      [nextStatus, paymentLegacyId]
+    );
+    if (['RECHAZADO', 'EXPIRADO', 'CANCELADO'].includes(nextStatus)) {
+      await client.query("UPDATE orders SET payment_status = $1::payment_status, status = 'CANCELADO', updated_at = now() WHERE id = $2", [nextStatus, payment.rows[0].orderId]);
+    } else {
+      await client.query('UPDATE orders SET payment_status = $1::payment_status, updated_at = now() WHERE id = $2', [nextStatus, payment.rows[0].orderId]);
+    }
+    await client.query('COMMIT');
+    return { paymentId: paymentLegacyId, paymentStatus: nextStatus, orderId: payment.rows[0].orderLegacyId, orderStatus: ['RECHAZADO', 'EXPIRADO', 'CANCELADO'].includes(nextStatus) ? 'CANCELADO' : payment.rows[0].orderStatus };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }

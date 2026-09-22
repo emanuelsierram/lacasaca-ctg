@@ -39,7 +39,7 @@ const App = () => {
   };
   const onAuth = (next: Session) => {
     saveSession(next);
-    navigate('orders');
+    navigate(next.role === 'ADMIN' ? 'admin' : 'orders');
   };
   const logout = () => {
     setSession(null);
@@ -54,6 +54,14 @@ const App = () => {
     localStorage.setItem('lacasaca-session', JSON.stringify(next));
     navigate('orders');
   };
+
+  if (route === 'admin') {
+    return <main className="min-h-screen bg-slate-100 text-slate-900"><AdminPage onLogout={logout} /></main>;
+  }
+
+  if (route === 'auth') {
+    return <main className="min-h-screen bg-slate-100 text-slate-900"><header className="bg-[#0c1715] px-6 py-4 text-white shadow"><button className="block" onClick={() => navigate('home')} aria-label="Ir al inicio"><img src="/lacasaca-logo.svg" alt="Lacasaca" className="h-10 w-auto max-w-[220px] origin-left scale-[2.75] object-contain" /></button></header><AuthPage onAuthenticated={onAuth} /></main>;
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -91,12 +99,10 @@ const App = () => {
         }
         navigate(account?.mustChangePassword ? 'change-password' : `order-success/${id}`);
       }} />}
-      {route === 'auth' && <AuthPage onAuthenticated={onAuth} />}
       {route === 'change-password' && <ChangePasswordPage onCompleted={completePasswordSetup} />}
       {route === 'orders' && <OrdersPage />}
       {route.startsWith('order-success/') && <OrderSuccessPage orderId={route.split('/')[1]} onOrders={() => navigate('orders')} />}
       {route.startsWith('order/') && <OrdersPage selectedId={route.split('/')[1]} />}
-      {route === 'admin' && <AdminPage />}
       {route !== 'auth' && <footer className="site-footer"><div><strong>Lacasaca Cartagena</strong><p>La camiseta que cuenta tu pasión.</p></div><div className="site-footer-links"><a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Instagram</a><a href="https://www.facebook.com/" target="_blank" rel="noreferrer">Facebook</a><a href="https://api.whatsapp.com/send?phone=573246108197" target="_blank" rel="noreferrer">WhatsApp</a><a href="#about">Sobre nosotros</a></div><small>© 2026 Lacasaca Cartagena</small></footer>}
     </main>
   );
