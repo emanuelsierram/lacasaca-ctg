@@ -40,7 +40,7 @@ export async function initializeDatabase() {
     const sql = await fs.readFile(path.join(migrationDirectory, file), 'utf8');
     const checksum = createHash('sha256').update(sql).digest('hex');
     const applied = await pool.query<{ checksum: string | null }>('SELECT checksum FROM schema_migrations WHERE version = $1', [file]);
-    if (applied.rows[0]?.checksum === checksum) continue;
+    if (applied.rows.length > 0) continue;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');

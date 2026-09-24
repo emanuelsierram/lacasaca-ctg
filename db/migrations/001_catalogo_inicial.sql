@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS products (
   category_id uuid NOT NULL REFERENCES categories(id),
   availability_type availability_type NOT NULL,
   is_active boolean NOT NULL DEFAULT true,
-  featured_image text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   legacy_id text
@@ -197,6 +196,11 @@ TRUNCATE TABLE app_state, cart_items, carts, payments, order_items, orders,
   admin_action_logs, password_reset_tokens, variants, products, users, categories
   RESTART IDENTITY CASCADE;
 
+INSERT INTO users (legacy_id, name, email, password_hash, role, address)
+VALUES
+  ('admin-1', 'Administrador', 'emanuelsierra17@gmail.com', 'hash:QWRtaW4xMjMh', 'ADMIN', ''),
+  ('customer-1', 'Cliente', 'cliente@lacasaca.com', 'hash:Q3VzdG9tZXIxMjMh', 'CUSTOMER', '');
+
 INSERT INTO categories (name, slug)
 VALUES
   ('RETROS', 'retros'),
@@ -212,20 +216,20 @@ FROM (VALUES
   ('prod-002', 'santos-2012-neymar-11', 'Santos 2012 Neymar #11', 'RETROS'),
   ('prod-003', 'manchester-2008-cristiano-ronaldo-7', 'Manchester 2008 Cristiano Ronaldo #7', 'RETROS'),
   ('prod-004', 'barcelona-2025-26', 'Barcelona 2025/26', 'ACTUALES'),
-  ('prod-005', 'colombia-mundial-2026-seleccion', 'Colombia Mundial 2026', 'SELECCIONES'),
-  ('prod-006', 'colombia-aniversario-100-anos', 'Colombia Aniversario 100 años', 'FEMENINO'),
+  ('prod-005', 'colombia-mundial-2026', 'Colombia Mundial 2026', 'SELECCIONES'),
+  ('prod-006', 'colombia-aniversario-100', 'Colombia Aniversario 100 años', 'FEMENINO'),
   ('prod-007', 'ac-milan-2007-kaka-22', 'AC Milan 2007 Kaká #22', 'RETROS'),
   ('prod-008', 'atletico-de-madrid-2012-falcao-9', 'Atletico de Madrid 2012 Falcao #9', 'RETROS'),
   ('prod-009', 'atletico-nacional-2026', 'Atletico Nacional 2026', 'ACTUALES'),
-  ('prod-010', 'juventud-2014-15', 'Juventud 2014/15', 'RETROS'),
-  ('prod-011', 'portugal-mundial-2026-cristiano-ronaldo-7', 'Portugal Mundial 2026 Cristiano Ronaldo #7', 'SELECCIONES'),
+  ('prod-010', 'juventus-2014-15', 'Juventus 2014/15', 'RETROS'),
+  ('prod-011', 'portugal-mundial-2026', 'Portugal Mundial 2026 Cristiano Ronaldo #7', 'SELECCIONES'),
   ('prod-012', 'brasil-mundial-2026-neymar-10', 'Brasil Mundial 2026 Neymar #10', 'SELECCIONES'),
-  ('prod-013', 'argentina-mundial-2026-messi-10', 'Argentina Mundial 2026 Messi #10', 'SELECCIONES'),
+  ('prod-013', 'argentina-mundial', 'Argentina Mundial 2026 Messi #10', 'SELECCIONES'),
   ('prod-014', 'fc-barcelona-2026-27', 'FC Barcelona 2026/27', 'ACTUALES'),
   ('prod-015', 'real-madrid-2026-27', 'Real Madrid 2026/27', 'ACTUALES'),
   ('prod-016', 'colombia-aniversario-100-kids', 'Colombia Aniversario 100 Kids', 'NINOS'),
   ('prod-017', 'fc-barcelona-2026-27-away', 'FC Barcelona 2026/27 Away', 'ACTUALES'),
-  ('prod-020', 'bayern-munich-2026-27-luis-diaz-14', 'Bayern Munich 2026/27 Luis Diaz #14', 'ACTUALES'),
+  ('prod-020', 'bayern-munich-2026-27-away', 'Bayern Munich 2026/27 Luis Diaz #14', 'ACTUALES'),
   ('prod-021', 'colombia-1994', 'Colombia 1994', 'RETROS'),
   ('prod-022', 'real-madrid-2026-27-away', 'Real Madrid 2026/27 Away', 'ACTUALES')
 ) AS seed(legacy_id, slug, name, category)
@@ -246,7 +250,7 @@ FROM (VALUES
   ('var-010', 'prod-006', 'COL-100-F-M-FAN', '{"size":"M","version":"FAN"}', 80000, 2),
   ('var-011', 'prod-006', 'COL-100-F-XL-FAN', '{"size":"XL","version":"FAN"}', 80000, 1),
   ('var-012', 'prod-007', 'MIL-2007-KAKA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#22 Kaká","tournament":"Champions"}', 140000, 1),
-  ('var-013', 'prod-008', 'ATM-2012-FALCAO-L-FAN', '{"size":"L","version":"FAN","dorsal":"#9 Falcao","tournament":"Eurocopa"}', 140000, 1),
+  ('var-013', 'prod-008', 'ATM-2012-FALCAO-L-FAN', '{"size":"L","version":"FAN","dorsal":"#9 Falcao","tournament":"Supercopa de Europa"}', 140000, 1),
   ('var-014', 'prod-009', 'ATN-2026-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
   ('var-015', 'prod-010', 'JUV-2014-15-L-FAN', '{"size":"L","version":"FAN"}', 120000, 1),
   ('var-016', 'prod-011', 'POR-2026-CR7-2XL-PLAYER', '{"size":"2XL","version":"PLAYER","dorsal":"#7 Ronaldo"}', 100000, 1),
@@ -265,4 +269,57 @@ FROM (VALUES
   ('var-029', 'prod-021', 'COL-1994-L-FAN', '{"size":"L","version":"FAN"}', 120000, 1),
   ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions"}', 80000, 1)
 ) AS seed(legacy_id, product_legacy_id, sku, attributes, price, stock)
+JOIN products p ON p.legacy_id = seed.product_legacy_id;
+
+INSERT INTO product_images (product_id, image_url, alt_text, sort_order)
+SELECT p.id, seed.image_url, p.name, seed.sort_order
+FROM (VALUES
+  ('prod-001', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Femenino/Mundial/Colombia/colombia-mundial-2026-femenino/colombia-mundial-2026-femenino.jpg', 1),
+  ('prod-001', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Femenino/Mundial/Colombia/colombia-mundial-2026-femenino/colombia-mundial-2026-femenino-back.jpg', 2),
+  ('prod-002', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Brasileirao/santos-away-2012-neymar-11/santos-away-2012-neymar-11-front.jpeg', 1),
+  ('prod-002', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Brasileirao/santos-away-2012-neymar-11/santos-away-2012-neymar-11-back.png', 2),
+  ('prod-002', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Brasileirao/santos-away-2012-neymar-11/santos-away-2012-neymar-11-front2.jpeg', 3),
+  ('prod-002', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Brasileirao/santos-away-2012-neymar-11/santos-away-2012-neymar-11-left.jpeg', 4),
+  ('prod-002', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Brasileirao/santos-away-2012-neymar-11/santos-away-2012-neymar-11-shield.jpeg', 5),
+  ('prod-003', 'URL_PROD_003_1', 1),
+  ('prod-003', 'URL_PROD_003_2', 2),
+  ('prod-004', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/barcelona-2025-26/fcbarcelona-front-2025-26.jpg', 1),
+  ('prod-004', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/barcelona-2025-26/fcbarcelona-back-2025-26.jpg', 2),
+  ('prod-005', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Colombia/colombia-mundial-2026/colombia-mundial-2026.jpg', 1),
+  ('prod-005', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Colombia/colombia-mundial-2026/colombia-mundial-2026-back.jpg', 2),
+  ('prod-005', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Colombia/colombia-mundial-2026/colombia-mundial-2026-back2.png', 3),
+  ('prod-006', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Femenino/Eliminatorias/colombia-aniversario-100/colombia-100.women.jpeg', 1),
+  ('prod-007', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Serie%20A/ac-milan-2007-kaka-22/ac-milan-2007-front.jpeg', 1),
+  ('prod-007', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Serie%20A/ac-milan-2007-kaka-22/ac-milan-2007-front2.jpeg', 2),
+  ('prod-007', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Serie%20A/ac-milan-2007-kaka-22/ac-milan-2007-back.png', 3),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9.jpg', 1),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9-front.jpg', 2),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9-shield.jpg', 3),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9-supercopa.jpg', 4),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9-supercopa-back.jpg', 5),
+  ('prod-008', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/La%20Liga/atletico-de-madrid-2012-falcao-9/atletico-de-madrid-2012-falcao-9-supercopa-left.jpg', 6),
+  ('prod-009', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/Liga%20Colombiana/atletico-nacional-2026/atletico-nacional-2026.jpg', 1),
+  ('prod-010', 'URL_PROD_010_1', 1),
+  ('prod-010', 'URL_PROD_010_2', 2),
+  ('prod-011', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Portugal/portugal-mundial-2026/portugal-mundial-2026-front.jpg', 1),
+  ('prod-011', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Portugal/portugal-mundial-2026/portugal-mundial-2026-back.png', 2),
+  ('prod-012', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Brasil/brasil-mundial-2026/brasil-mundial-2026-front.jpg', 1),
+  ('prod-012', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Brasil/brasil-mundial-2026/brasil-mundial-2026-back.png', 2),
+  ('prod-013', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Argentina/argentina-mundial-2026/argentina-mundial-2026-front.jpg', 1),
+  ('prod-013', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Selecciones/Mundial/Argentina/argentina-mundial-2026/argentina-mundial-2026-back.png', 2),
+  ('prod-014', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/fc-barcelona-2026-27/fc-barcelona-2026-27-front.jpg', 1),
+  ('prod-014', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/fc-barcelona-2026-27/fc-barcelona-2026-27-back.jpg', 2),
+  ('prod-015', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27/real-madrid-2026-27-front.jpg', 1),
+  ('prod-015', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27/real-madrid-2026-27-mbappe.png', 2),
+  ('prod-016', 'URL_PROD_016_1', 1),
+  ('prod-016', 'URL_PROD_016_2', 2),
+  ('prod-017', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/fc-barcelona-2026-27-away/fcbarcelona-away-front.jpg', 1),
+  ('prod-017', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/fc-barcelona-2026-27-away/fcbarcelona-away-back.jpg', 2),
+  ('prod-020', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/Bundesliga/bayern-munich-2026-27-away/bayern-munich-2026-27-away-front.jpg', 1),
+  ('prod-020', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/Bundesliga/bayern-munich-2026-27-away/bayern-munich-2026-27-away-back.png', 2),
+  ('prod-021', 'URL_PROD_021_1', 1),
+  ('prod-021', 'URL_PROD_021_2', 2),
+  ('prod-022', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-front.jpeg', 1),
+  ('prod-022', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-back.jpeg', 2)
+) AS seed(product_legacy_id, image_url, sort_order)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;

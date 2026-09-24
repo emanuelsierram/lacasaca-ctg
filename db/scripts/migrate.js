@@ -13,11 +13,14 @@ async function migrate() {
   await client.connect();
   await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
   await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum text');
+  if (process.argv.includes('--reset')) {
+    await client.query('DELETE FROM schema_migrations');
+  }
   for (const file of fs.readdirSync(migrationDirectory).filter((entry) => entry.endsWith('.sql')).sort()) {
     const sql = fs.readFileSync(path.join(migrationDirectory, file), 'utf8');
     const checksum = crypto.createHash('sha256').update(sql).digest('hex');
     const applied = await client.query('SELECT checksum FROM schema_migrations WHERE version = $1', [file]);
-    if (applied.rows[0]?.checksum === checksum) continue;
+    if (applied.rows.length > 0) continue;
     await client.query('BEGIN');
     try {
       await client.query(sql);
