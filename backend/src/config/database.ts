@@ -4,7 +4,10 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
+const appEnv = process.env.APP_ENV ?? 'local';
+dotenv.config({ path: path.resolve(__dirname, `../../.env.${appEnv}`) });
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), `.env.${appEnv}`) });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const pool = process.env.DATABASE_URL

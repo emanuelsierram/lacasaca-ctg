@@ -1,8 +1,11 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../backend/.env') });
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Client } = require('pg');
+
+const appEnv = process.env.APP_ENV || 'local';
+require('dotenv').config({ path: path.resolve(__dirname, `../../backend/.env.${appEnv}`) });
+require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') });
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL

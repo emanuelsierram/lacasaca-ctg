@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
     "seed:demo": "node -e \"console.log('Demo data is initialized by the backend on first start.')\""
   }
 }

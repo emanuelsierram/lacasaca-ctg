@@ -8,3 +8,4 @@ build/
 .vite/
 .DS_Store
 Thumbs.db
+db/scripts/seed.js
