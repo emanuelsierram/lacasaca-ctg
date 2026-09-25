@@ -248,13 +248,13 @@ JOIN categories c ON c.name = seed.category::product_category;
 INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
 SELECT seed.legacy_id, p.id, seed.sku, seed.attributes::jsonb, seed.price, seed.stock, true, 'IMMEDIATE'
 FROM (VALUES
-  ('var-001', 'prod-001', 'COL-MUNDIAL-F-M-PLAYER', '{"size":"M","version":"PLAYER"}', 60000, 1),
-  ('var-002', 'prod-001', 'COL-MUNDIAL-F-L-FAN', '{"size":"L","version":"FAN"}', 60000, 1),
-  ('var-003', 'prod-001', 'COL-MUNDIAL-F-XL-PLAYER', '{"size":"XL","version":"FAN"}', 60000, 1),
+  ('var-001', 'prod-001', 'COL-MUNDIAL-F-M-PLAYER', '{"size":"M","version":"PLAYER"}', 80000, 1),
+  ('var-002', 'prod-001', 'COL-MUNDIAL-F-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
+  ('var-003', 'prod-001', 'COL-MUNDIAL-F-XL-PLAYER', '{"size":"XL","version":"FAN"}', 80000, 1),
   ('var-004', 'prod-002', 'SAN-2012-NEYMAR-M-FAN', '{"size":"M","version":"FAN","dorsal":"#11 Neymar"}', 140000, 1),
   ('var-005', 'prod-003', 'MAN-2008-CR7-M-FAN', '{"size":"M","version":"FAN","dorsal":"#7 Ronaldo","tournament":"Champions League"}', 140000, 1),
   ('var-006', 'prod-003', 'MAN-2008-CR7-L-FAN', '{"size":"L","version":"FAN","dorsal":"#7 Ronaldo"}', 140000, 1),
-  ('var-007', 'prod-004', 'BAR-2025-26-M-FAN', '{"size":"M","version":"FAN"}', 60000, 1),
+  ('var-007', 'prod-004', 'BAR-2025-26-M-FAN', '{"size":"M","version":"FAN"}', 80000, 1),
   ('var-008', 'prod-005', 'COL-MUNDIAL-S-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
   ('var-009', 'prod-006', 'COL-100-F-L-FAN', '{"size":"L","version":"FAN"}', 80000, 2),
   ('var-010', 'prod-006', 'COL-100-F-M-FAN', '{"size":"M","version":"FAN"}', 80000, 2),
