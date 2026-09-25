@@ -240,16 +240,16 @@ SELECT seed.legacy_id, p.id, seed.sku, seed.attributes::jsonb, seed.price, seed.
 FROM (VALUES
   ('var-001', 'prod-001', 'COL-MUNDIAL-F-M-PLAYER', '{"size":"M","version":"PLAYER"}', 60000, 1),
   ('var-002', 'prod-001', 'COL-MUNDIAL-F-L-FAN', '{"size":"L","version":"FAN"}', 60000, 1),
-  ('var-003', 'prod-001', 'COL-MUNDIAL-F-XL-PLAYER', '{"size":"XL","version":"PLAYER"}', 60000, 1),
+  ('var-003', 'prod-001', 'COL-MUNDIAL-F-XL-PLAYER', '{"size":"XL","version":"FAN"}', 60000, 1),
   ('var-004', 'prod-002', 'SAN-2012-NEYMAR-M-FAN', '{"size":"M","version":"FAN","dorsal":"#11 Neymar"}', 140000, 1),
-  ('var-005', 'prod-003', 'MAN-2008-CR7-M-FAN', '{"size":"M","version":"FAN","dorsal":"#7 Ronaldo"}', 140000, 1),
+  ('var-005', 'prod-003', 'MAN-2008-CR7-M-FAN', '{"size":"M","version":"FAN","dorsal":"#7 Ronaldo","tournament":"Champions League"}', 140000, 1),
   ('var-006', 'prod-003', 'MAN-2008-CR7-L-FAN', '{"size":"L","version":"FAN","dorsal":"#7 Ronaldo"}', 140000, 1),
   ('var-007', 'prod-004', 'BAR-2025-26-M-FAN', '{"size":"M","version":"FAN"}', 60000, 1),
   ('var-008', 'prod-005', 'COL-MUNDIAL-S-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
   ('var-009', 'prod-006', 'COL-100-F-L-FAN', '{"size":"L","version":"FAN"}', 80000, 2),
   ('var-010', 'prod-006', 'COL-100-F-M-FAN', '{"size":"M","version":"FAN"}', 80000, 2),
   ('var-011', 'prod-006', 'COL-100-F-XL-FAN', '{"size":"XL","version":"FAN"}', 80000, 1),
-  ('var-012', 'prod-007', 'MIL-2007-KAKA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#22 Kaká","tournament":"Champions"}', 140000, 1),
+  ('var-012', 'prod-007', 'MIL-2007-KAKA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#22 Kaká","tournament":"Champions League"}', 140000, 1),
   ('var-013', 'prod-008', 'ATM-2012-FALCAO-L-FAN', '{"size":"L","version":"FAN","dorsal":"#9 Falcao","tournament":"Supercopa de Europa"}', 140000, 1),
   ('var-014', 'prod-009', 'ATN-2026-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
   ('var-015', 'prod-010', 'JUV-2014-15-L-FAN', '{"size":"L","version":"FAN"}', 120000, 1),
@@ -260,14 +260,14 @@ FROM (VALUES
   ('var-020', 'prod-015', 'RM-2026-27-L-FAN', '{"size":"L","version":"FAN"}', 80000, 1),
   ('var-021', 'prod-015', 'RM-2026-27-M-FAN', '{"size":"M","version":"FAN"}', 80000, 1),
   ('var-022', 'prod-016', 'COL-100-KIDS-16-FAN', '{"size":"16","version":"FAN"}', 110000, 1),
-  ('var-023', 'prod-017', 'BAR-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions"}', 80000, 1),
-  ('var-024', 'prod-017', 'BAR-2026-27-AWAY-L-PLAYER', '{"size":"L","version":"PLAYER","tournament":"Champions"}', 80000, 1),
+  ('var-023', 'prod-017', 'BAR-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1),
+  ('var-024', 'prod-017', 'BAR-2026-27-AWAY-L-PLAYER', '{"size":"L","version":"PLAYER","tournament":"Champions League"}', 80000, 1),
   ('var-025', 'prod-005', 'COL-2026-LUIS-DIAZ-XL-PLAYER', '{"size":"XL","version":"PLAYER","dorsal":"#7 Luis Díaz","tournament":"Mundial"}', 80000, 1),
-  ('var-026', 'prod-015', 'RM-2027-MBAPPE-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions"}', 80000, 1),
-  ('var-027', 'prod-015', 'RM-2027-MBAPPE-M-FAN', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions"}', 80000, 1),
+  ('var-026', 'prod-015', 'RM-2027-MBAPPE-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 80000, 1),
+  ('var-027', 'prod-015', 'RM-2027-MBAPPE-M-FAN', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 80000, 1),
   ('var-028', 'prod-020', 'BAY-2026-27-LUIS-DIAZ-L-FAN', '{"size":"L","version":"FAN","dorsal":"#14 Luis Díaz"}', 100000, 1),
   ('var-029', 'prod-021', 'COL-1994-L-FAN', '{"size":"L","version":"FAN"}', 110000, 1),
-  ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions"}', 80000, 1)
+  ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1)
 ) AS seed(legacy_id, product_legacy_id, sku, attributes, price, stock)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
 

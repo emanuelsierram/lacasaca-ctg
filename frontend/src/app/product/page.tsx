@@ -71,6 +71,16 @@ export function ProductDetailPage({
   const variants = product.variants.filter((variant) => variant.isActive);
   const isMadeToOrder = product.availabilityType === "MADE_TO_ORDER";
   const hidesVersion = ["RETROS", "NINOS", "FEMENINO"].includes(product.category);
+  const availableSizes = [
+    ...new Set(
+      variants.map((variant) => String(variant.attributes.size ?? "Única")),
+    ),
+  ].sort((left, right) => {
+    const leftIndex = sizes.indexOf(left);
+    const rightIndex = sizes.indexOf(right);
+    return (leftIndex === -1 ? sizes.length : leftIndex) -
+      (rightIndex === -1 ? sizes.length : rightIndex);
+  });
   const sizeVariants = variants.filter(
     (variant) => String(variant.attributes.size ?? "") === selectedSize,
   );
@@ -278,7 +288,7 @@ export function ProductDetailPage({
               <div className="mt-6">
                 <p className="text-sm font-medium">Talla</p>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  {[...new Set(variants.map((variant) => String(variant.attributes.size ?? "Única")))].map((size) => (
+                  {availableSizes.map((size) => (
                     <button
                       key={size}
                       type="button"
