@@ -14,7 +14,8 @@ import { api, type Cart, type Session } from './api';
 import './styles.css';
 
 const App = () => {
-  const [route, setRoute] = React.useState(window.location.hash.slice(1) || 'home');
+  const hasPasswordResetToken = new URLSearchParams(window.location.search).has('resetToken');
+  const [route, setRoute] = React.useState(hasPasswordResetToken ? 'auth' : window.location.hash.slice(1) || 'home');
   const [search, setSearch] = React.useState('');
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [cart, setCart] = React.useState<Cart>({ id: 'guest-cart', items: [], total: 0 });

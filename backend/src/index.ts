@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { initializeDatabase, loadState, pool, saveState } from './config/database';
 import { orderService } from './services/order.service';
+import { passwordResetService } from './services/password-reset.service';
 import { userService, type UserRecord } from './services/user.service';
 import { addDbCartItem, advanceDbOrderStatus, cancelDbAdminOrder, cancelDbOrder, confirmDbPayment, createDbAdminOrder, createDbOrder, createDbPayment, getDbCart, getDbOrder, listDbOrders, listDbPayments, removeDbCartItem, updateDbAdminOrder, updateDbCartItem, updateDbPaymentStatus } from './repositories/postgres.store';
 
@@ -409,20 +410,78 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 app.post('/api/auth/password-reset/request', async (req: Request, res: Response) => {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   if (!email) return res.status(400).json({ message: 'Email is required' });
-  const user = await pool.query<{ id: string }>('SELECT id FROM users WHERE lower(email) = $1 AND is_active = true', [email]);
-  const response: { message: string; resetToken?: string } = { message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña.' };
-  if (user.rowCount) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const user = await client.query<{ id: string }>('SELECT id FROM users WHERE lower(email) = $1 AND is_active = true', [email]);
+    if (!user.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'El correo no existe' });
+    }
+
+    await client.query(
+      `INSERT INTO password_reset_rate_limits (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [user.rows[0].id]
+    );
+    const rateLimit = await client.query<{ attempts: number; lastRequestedAt: Date | null; blockedUntil: Date | null; windowStartedAt: Date }>(
+      `SELECT attempts, last_requested_at AS "lastRequestedAt", blocked_until AS "blockedUntil", window_started_at AS "windowStartedAt"
+       FROM password_reset_rate_limits WHERE user_id = $1 FOR UPDATE`,
+      [user.rows[0].id]
+    );
+    const current = rateLimit.rows[0];
+    const now = Date.now();
+    const blockedUntil = current.blockedUntil?.getTime() ?? 0;
+    if (blockedUntil > now) {
+      const retryAfterSeconds = Math.ceil((blockedUntil - now) / 1000);
+      await client.query('ROLLBACK');
+      return res.status(429).json({ message: `Has alcanzado el límite de recuperación. Espera ${Math.ceil(retryAfterSeconds / 60)} minutos para volver a intentarlo.`, retryAfterSeconds });
+    }
+    const windowExpired = now - current.windowStartedAt.getTime() >= 30 * 60 * 1000;
+    const attempts = windowExpired ? 0 : current.attempts;
+    if (!windowExpired && current.lastRequestedAt) {
+      const retryAfterSeconds = Math.ceil((current.lastRequestedAt.getTime() + 60 * 1000 - now) / 1000);
+      if (retryAfterSeconds > 0) {
+        await client.query('ROLLBACK');
+        return res.status(429).json({ message: `Espera ${retryAfterSeconds} segundos antes de solicitar otro correo.`, retryAfterSeconds });
+      }
+    }
+
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    await pool.query('UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [user.rows[0].id]);
-    await pool.query(
+    await client.query('UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [user.rows[0].id]);
+    await client.query(
       `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
        VALUES ($1, $2, now() + interval '30 minutes')`,
       [user.rows[0].id, tokenHash]
     );
-    if (process.env.NODE_ENV !== 'production') response.resetToken = token;
+    await passwordResetService.sendResetEmail(email, token);
+
+    const nextAttempts = attempts + 1;
+    const nextBlockedUntil = nextAttempts >= 3 ? 'now() + interval \'30 minutes\'' : 'NULL';
+    await client.query(
+      `UPDATE password_reset_rate_limits
+       SET window_started_at = CASE WHEN $2 THEN now() ELSE window_started_at END,
+           attempts = $3,
+           last_requested_at = now(),
+           blocked_until = ${nextBlockedUntil},
+           updated_at = now()
+       WHERE user_id = $1`,
+      [user.rows[0].id, windowExpired, nextAttempts]
+    );
+    await client.query('COMMIT');
+
+    return res.json({
+      message: 'Las instrucciones para restablecer tu contraseña fueron enviadas a tu correo.',
+      retryAfterSeconds: nextAttempts >= 3 ? 30 * 60 : 60
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-  return res.json(response);
 });
 
 app.post('/api/auth/password-reset/confirm', async (req: Request, res: Response) => {

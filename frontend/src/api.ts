@@ -61,7 +61,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, { ...options, headers: { ...headers(), ...options.headers } });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.message ?? 'No pudimos completar la operación.');
+    const error = new Error(body.message ?? 'No pudimos completar la operación.') as Error & { retryAfterSeconds?: number };
+    error.retryAfterSeconds = body.retryAfterSeconds;
+    throw error;
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }
@@ -92,7 +94,7 @@ export const api = {
     return request<Session>('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
   },
   requestPasswordReset(email: string) {
-    return request<{ message: string; resetToken?: string }>('/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+    return request<{ message: string }>('/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
   },
   confirmPasswordReset(token: string, password: string) {
     return request<{ message: string }>('/auth/password-reset/confirm', { method: 'POST', body: JSON.stringify({ token, password }) });

@@ -190,10 +190,20 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS password_reset_rate_limits (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  window_started_at timestamptz NOT NULL DEFAULT now(),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  last_requested_at timestamptz,
+  blocked_until timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+
 CREATE INDEX IF NOT EXISTS password_reset_tokens_user_idx ON password_reset_tokens (user_id, expires_at);
 
 TRUNCATE TABLE app_state, cart_items, carts, payments, order_items, orders,
-  admin_action_logs, password_reset_tokens, variants, products, users, categories
+  admin_action_logs, password_reset_tokens, variants, products, users, categories, password_reset_rate_limits
   RESTART IDENTITY CASCADE;
 
 INSERT INTO users (legacy_id, name, email, password_hash, role, address)
