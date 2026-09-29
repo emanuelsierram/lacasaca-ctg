@@ -1,4 +1,4 @@
-import cors from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import { createHash, randomBytes } from 'node:crypto';
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
@@ -15,7 +15,28 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
-app.use(cors());
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'https://lacasaca-ctg.vercel.app',
+  ...(process.env.FRONTEND_URL ?? '').split(','),
+  ...(process.env.CORS_ORIGINS ?? '').split(',')
+].map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean));
+
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin is not allowed by CORS'));
+  },
+  methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-cart-id', 'x-user-id'],
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 const categoryEnum = ['RETROS', 'ACTUALES', 'SELECCIONES', 'FEMENINO', 'NINOS'] as const;
