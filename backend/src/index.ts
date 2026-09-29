@@ -954,6 +954,20 @@ export async function initializeApp() {
 
 export { app };
 
+let initialization: Promise<void> | undefined;
+
+export default async function handler(request: Request, response: Response) {
+  initialization ??= initializeApp();
+  try {
+    await initialization;
+  } catch (error) {
+    initialization = undefined;
+    console.error('No se pudo inicializar la persistencia PostgreSQL:', error);
+    return response.status(500).json({ message: 'No se pudo inicializar la persistencia.' });
+  }
+  return app(request, response);
+}
+
 async function start() {
   await initializeApp();
   app.listen(port, () => {
