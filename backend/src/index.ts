@@ -237,6 +237,12 @@ const authLoginSchema = z.object({
   password: z.string().min(1)
 });
 
+const profileSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  address: z.string().trim().max(300)
+});
+
 const passwordSchema = z.string().regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/, 'Password does not meet strength requirements');
 
 app.get('/', (_req: Request, res: Response) => {
@@ -405,6 +411,64 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
     address: session.address,
     role: session.role
   });
+});
+
+app.get('/api/auth/profile', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!userId) return res.status(401).json({ message: 'Authentication is required' });
+
+  const result = await pool.query<{ id: string; name: string; email: string; address: string; role: 'CUSTOMER' | 'ADMIN' }>(
+    'SELECT legacy_id AS id, name, email, address, role FROM users WHERE legacy_id = $1 AND is_active = true',
+    [userId]
+  );
+  if (!result.rowCount) return res.status(404).json({ message: 'User not found' });
+  return res.json(result.rows[0]);
+});
+
+app.patch('/api/auth/profile', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  const parsed = profileSchema.safeParse(req.body);
+  if (!userId || !parsed.success) {
+    return res.status(400).json({ message: 'Authentication and valid profile data are required' });
+  }
+
+  const { name, email, address } = parsed.data;
+  let updated;
+  try {
+    updated = await pool.query<{ id: string; name: string; email: string; address: string; role: 'CUSTOMER' | 'ADMIN' }>(
+      `UPDATE users SET name = $1, email = $2, address = $3
+       WHERE legacy_id = $4 AND is_active = true
+       RETURNING legacy_id AS id, name, email, address, role`,
+      [name, email.toLowerCase(), address, userId]
+    );
+  } catch (error) {
+    if ((error as { code?: string }).code === '23505') {
+      return res.status(409).json({ message: 'Este email ya tiene una cuenta' });
+    }
+    throw error;
+  }
+  if (!updated.rowCount) return res.status(404).json({ message: 'User not found' });
+
+  const legacyUser = users.find((user) => user.id === userId);
+  if (legacyUser) {
+    legacyUser.name = name;
+    legacyUser.email = email.toLowerCase();
+    legacyUser.address = address;
+  }
+  await persistState();
+  return res.json(updated.rows[0]);
+});
+
+app.delete('/api/auth/profile', async (req: Request, res: Response) => {
+  const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
+  if (!userId) return res.status(401).json({ message: 'Authentication is required' });
+
+  const deleted = await pool.query('UPDATE users SET is_active = false WHERE legacy_id = $1 AND is_active = true', [userId]);
+  if (!deleted.rowCount) return res.status(404).json({ message: 'User not found' });
+  const legacyIndex = users.findIndex((user) => user.id === userId);
+  if (legacyIndex >= 0) users.splice(legacyIndex, 1);
+  await persistState();
+  return res.status(204).send();
 });
 
 app.post('/api/auth/password-reset/request', async (req: Request, res: Response) => {

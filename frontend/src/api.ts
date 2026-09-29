@@ -93,6 +93,11 @@ export const api = {
   login(payload: { email: string; password: string }) {
     return request<Session>('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
   },
+  getProfile() { return request<Session>('/auth/profile'); },
+  updateProfile(payload: { name: string; email: string; address: string }) {
+    return request<Session>('/auth/profile', { method: 'PATCH', body: JSON.stringify(payload) });
+  },
+  deleteProfile() { return request<void>('/auth/profile', { method: 'DELETE' }); },
   requestPasswordReset(email: string) {
     return request<{ message: string }>('/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
   },

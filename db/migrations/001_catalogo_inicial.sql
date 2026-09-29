@@ -245,6 +245,13 @@ FROM (VALUES
 ) AS seed(legacy_id, slug, name, category)
 JOIN categories c ON c.name = seed.category::product_category;
 
+INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type, is_active)
+SELECT seed.legacy_id, seed.slug, seed.name, seed.description, c.id, 'MADE_TO_ORDER', true
+FROM (VALUES
+  ('prod-023', 'francia-1996', 'Francia 1996', 'Camiseta retro Francia 1996', 'RETROS')
+) AS seed(legacy_id, slug, name, description, category)
+JOIN categories c ON c.name = seed.category::product_category;
+
 INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
 SELECT seed.legacy_id, p.id, seed.sku, seed.attributes::jsonb, seed.price, seed.stock, true, 'IMMEDIATE'
 FROM (VALUES
@@ -332,8 +339,11 @@ FROM (VALUES
   ('prod-020', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/Bundesliga/bayern-munich-2026-27-away/bayern-munich-2026-27-away-front.jpg', 1),
   ('prod-020', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/Bundesliga/bayern-munich-2026-27-away/bayern-munich-2026-27-away-back.png', 2),
   ('prod-021', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1994/colombia-1994.jpg', 1),
-  ('prod-021', 'URL_PROD_021_2', 2),
   ('prod-022', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-front.jpeg', 1),
-  ('prod-022', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-back.jpeg', 2)
+  ('prod-022', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-back.jpeg', 2),
+  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996.jpg', 1),
+  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-front.jpg', 2),
+  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-back.jpg', 3),
+  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-shield.jpg', 4)
 ) AS seed(product_legacy_id, image_url, sort_order)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
