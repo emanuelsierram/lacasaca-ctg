@@ -9,3 +9,4 @@ build/
 .DS_Store
 Thumbs.db
 db/scripts/seed.js
+db/scripts/migrate.js
