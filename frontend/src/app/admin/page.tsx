@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, paymentMethodLabel, type Product } from "../../api";
+import { formatCOP } from "../../currency";
 
 const categories = [
   "ALL",
@@ -9,6 +10,39 @@ const categories = [
   "FEMENINO",
   "NINOS",
 ];
+
+function whatsappPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.startsWith("57") ? digits : digits.length === 10 ? `57${digits}` : digits;
+}
+
+function variantAttributes(attributes: Record<string, string | boolean>) {
+  return Object.entries(attributes)
+    .filter(([, value]) => typeof value === "boolean" ? value : value.trim() !== "")
+    .map(([, value]) => typeof value === "boolean" ? "Sí" : value)
+    .join(", ");
+}
+
+function whatsappOrderMessage(order: {
+  total: number;
+  items: Array<{
+    productName: string;
+    attributes: Record<string, string | boolean>;
+    availabilityType: "IMMEDIATE" | "MADE_TO_ORDER";
+  }>;
+}) {
+  const productTable = [
+    "Producto | Atributos | Método de envío",
+    "--- | --- | ---",
+    ...order.items.map((item) => {
+      const shippingMethod = item.availabilityType === "MADE_TO_ORDER"
+        ? "Sobre pedido"
+        : "Entrega inmediata";
+      return `${item.productName} | ${variantAttributes(item.attributes) || "Única"} | ${shippingMethod}`;
+    }),
+  ].join("\n");
+  return `Gracias por realizar el pedido:\n\n${productTable}\n\nValor total: "${formatCOP(order.total)}". Puedes pagar desde las siguientes cuentas:\n\nBancolombia:\nNequi: 3002539848\nLlave: 3002539848`;
+}
 
 export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [section, setSection] = useState("inventory");
@@ -584,6 +618,16 @@ function Orders({ orders, users, reload, fail }: any) {
                   />
                 </td>
                 <td className="p-4">
+                  {order.customerPhone && (
+                    <a
+                      href={`https://wa.me/${whatsappPhone(order.customerPhone)}?text=${encodeURIComponent(whatsappOrderMessage(order))}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mr-3 inline-block font-semibold text-green-700"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
                   <button
                     onClick={() =>
                       setConfirm(() =>
@@ -727,7 +771,9 @@ function Payments({ payments, reload, fail }: any) {
         <table className="w-full min-w-[460px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="p-4">Pedido</th>
+              <th className="p-4">Cliente</th>
+              <th className="p-4">Pedido asociado</th>
+              <th className="p-4">Fecha de creación</th>
               <th className="p-4">Método</th>
               <th className="p-4">Estado</th>
             </tr>
@@ -735,7 +781,13 @@ function Payments({ payments, reload, fail }: any) {
           <tbody>
             {payments.map((payment: any) => (
               <tr key={payment.id} className="border-b last:border-b-0">
+                <td className="p-4">{payment.userName ?? payment.email ?? "Invitado"}</td>
                 <td className="p-4">{payment.orderId}</td>
+                <td className="p-4">
+                  {payment.createdAt
+                    ? new Date(payment.createdAt).toLocaleString("es-CO")
+                    : "-"}
+                </td>
                 <td className="p-4">{paymentMethodLabel(payment.method)}</td>
                 <td className="p-4">
                   <Status

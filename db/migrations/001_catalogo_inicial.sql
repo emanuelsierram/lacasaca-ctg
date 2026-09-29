@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS cart_items (
   variant_id uuid NOT NULL REFERENCES variants(id),
   quantity integer NOT NULL CHECK (quantity > 0),
   unit_price_snapshot numeric(12,2) NOT NULL CHECK (unit_price_snapshot > 0),
+  attributes jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   legacy_id text,
@@ -153,6 +154,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   quantity integer NOT NULL CHECK (quantity > 0),
   unit_price_snapshot numeric(12,2) NOT NULL CHECK (unit_price_snapshot > 0),
   subtotal numeric(12,2) NOT NULL CHECK (subtotal >= 0),
+  attributes jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -284,7 +286,8 @@ FROM (VALUES
   ('var-027', 'prod-015', 'RM-2027-MBAPPE-M-FAN', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 80000, 1),
   ('var-028', 'prod-020', 'BAY-2026-27-LUIS-DIAZ-L-FAN', '{"size":"L","version":"FAN","dorsal":"#14 Luis Díaz"}', 100000, 1),
   ('var-029', 'prod-021', 'COL-1994-L-FAN', '{"size":"L","version":"FAN"}', 110000, 1),
-  ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1)
+  ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1),
+  ('var-031', 'prod-023', 'FR-1996', '{}', 110000, 99)
 ) AS seed(legacy_id, product_legacy_id, sku, attributes, price, stock)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
 

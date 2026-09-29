@@ -8,18 +8,11 @@ WHERE c.name = 'RETROS'::product_category
     WHERE p.legacy_id = 'prod-023'
   );
 
-DELETE FROM product_images
-WHERE product_id = (SELECT id FROM products WHERE legacy_id = 'prod-021')
-  AND image_url = 'URL_PROD_021_2';
-
-DELETE FROM product_images
-WHERE product_id = (SELECT id FROM products WHERE legacy_id = 'prod-022');
 
 INSERT INTO product_images (product_id, image_url, alt_text, sort_order)
 SELECT p.id, seed.image_url, p.name, seed.sort_order
 FROM products p
 JOIN (VALUES
-  ('https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Actuales/La%20Liga/real-madrid-2026-27-away/real-madrid-2026-27-away-back.jpeg', 2),
   ('https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996.jpg', 1),
   ('https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-front.jpg', 2),
   ('https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-back.jpg', 3),

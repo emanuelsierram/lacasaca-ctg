@@ -12,6 +12,7 @@ export type DbCartItem = {
   unitPrice: number;
   quantity: number;
   subtotal: number;
+  attributes: Record<string, string | boolean>;
 };
 
 export async function ensureCart(cartLegacyId: string, userLegacyId?: string | null) {
@@ -28,13 +29,13 @@ export async function getDbCart(cartLegacyId: string): Promise<{ id: string; ite
   const result = await pool.query<DbCartItem>(
      `SELECT ci.legacy_id AS id, v.legacy_id AS "variantId", p.name AS "productName",
       concat_ws(' - ',
-        NULLIF(v.attributes->>'size', ''),
-        NULLIF(v.attributes->>'version', ''),
-        NULLIF(v.attributes->>'tournament', ''),
-        NULLIF(v.attributes->>'dorsal', ''),
-        CASE WHEN v.attributes->>'long-sleeves' = 'true' THEN 'Manga larga' END
+        NULLIF(COALESCE(ci.attributes, v.attributes)->>'size', ''),
+        NULLIF(COALESCE(ci.attributes, v.attributes)->>'version', ''),
+        NULLIF(COALESCE(ci.attributes, v.attributes)->>'tournament', ''),
+        NULLIF(COALESCE(ci.attributes, v.attributes)->>'dorsal', ''),
+        CASE WHEN (COALESCE(ci.attributes, v.attributes)->>'long-sleeves') = 'true' THEN 'Manga larga' END
       ) AS "variantLabel",
-      v.availability_type AS "availabilityType", v.stock,
+      p.availability_type AS "availabilityType", v.stock, COALESCE(ci.attributes, v.attributes) AS attributes,
        ci.unit_price_snapshot AS "unitPrice", ci.quantity,
        ci.unit_price_snapshot * ci.quantity AS subtotal
      FROM cart_items ci
@@ -60,16 +61,11 @@ export async function addDbCartItem(cartLegacyId: string, variantLegacyId: strin
   const found = variant.rows[0];
   if (!found) throw new Error('Variant not found');
   if (!found.active || !found.productActive) throw new Error('Variant is not active');
-  let selectedVariantId = variantLegacyId;
-  if (attributes && found.productAvailabilityType === 'MADE_TO_ORDER') {
-    const key = JSON.stringify(Object.fromEntries(Object.entries(attributes).sort(([a], [b]) => a.localeCompare(b))));
-    selectedVariantId = `made-${variantLegacyId}-${createHash('sha256').update(key).digest('hex').slice(0, 16)}`;
-    await pool.query(
-      `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
-       VALUES ($1, $2, $3, $4::jsonb, $5, 0, true, 'MADE_TO_ORDER')
-       ON CONFLICT (legacy_id) DO NOTHING`,
-      [selectedVariantId, found.productId, `SKU-${selectedVariantId}`, JSON.stringify(attributes), found.price]
-    );
+  const selectedVariantId = variantLegacyId;
+  const selectedAttributes = found.productAvailabilityType === 'MADE_TO_ORDER' ? attributes ?? {} : null;
+  if (selectedAttributes) {
+    const key = JSON.stringify(Object.fromEntries(Object.entries(selectedAttributes).sort(([a], [b]) => a.localeCompare(b))));
+    if (!key) throw new Error('Invalid made-to-order attributes');
   }
   if (found.productAvailabilityType === 'IMMEDIATE') {
     const existing = await pool.query<{ quantity: number }>(
@@ -85,13 +81,14 @@ export async function addDbCartItem(cartLegacyId: string, variantLegacyId: strin
   const unitPrice = found.productAvailabilityType === 'MADE_TO_ORDER'
     ? madeToOrderPrice(Number(found.price), attributes ?? {})
     : immediatePrice(Number(found.price), attributes);
-  const legacyItemId = `cart-item-${cartLegacyId}-${selectedVariantId}`;
+  const attributesKey = selectedAttributes ? createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(selectedAttributes).sort(([a], [b]) => a.localeCompare(b))))).digest('hex').slice(0, 16) : '';
+  const legacyItemId = `cart-item-${cartLegacyId}-${selectedVariantId}${attributesKey ? `-${attributesKey}` : ''}`;
   await pool.query(
-    `INSERT INTO cart_items (legacy_id, cart_id, variant_id, quantity, unit_price_snapshot)
-     VALUES ($1, (SELECT id FROM carts WHERE legacy_id = $2), (SELECT id FROM variants WHERE legacy_id = $3), $4, $5)
+    `INSERT INTO cart_items (legacy_id, cart_id, variant_id, quantity, unit_price_snapshot, attributes)
+     VALUES ($1, (SELECT id FROM carts WHERE legacy_id = $2), (SELECT id FROM variants WHERE legacy_id = $3), $4, $5, $6::jsonb)
      ON CONFLICT (legacy_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity,
-       unit_price_snapshot = EXCLUDED.unit_price_snapshot, updated_at = now()`,
-     [legacyItemId, cartLegacyId, selectedVariantId, quantity, unitPrice]
+       unit_price_snapshot = EXCLUDED.unit_price_snapshot, attributes = EXCLUDED.attributes, updated_at = now()`,
+     [legacyItemId, cartLegacyId, selectedVariantId, quantity, unitPrice, selectedAttributes ? JSON.stringify(selectedAttributes) : null]
   );
   const cart = await getDbCart(cartLegacyId);
   return cart.items.find((item) => item.id === legacyItemId)!;
@@ -122,9 +119,9 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-        const cart = await client.query<{ variantId: string; productName: string; quantity: number; price: number; variantUuid: string; productUuid: string; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER' }>(
+        const cart = await client.query<{ variantId: string; productName: string; quantity: number; price: number; attributes: Record<string, string | boolean>; variantUuid: string; productUuid: string; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER' }>(
       `SELECT v.legacy_id AS "variantId", p.name AS "productName", ci.quantity, ci.unit_price_snapshot AS price,
-          v.id AS "variantUuid", p.id AS "productUuid", v.availability_type AS "availabilityType"
+          COALESCE(ci.attributes, v.attributes) AS attributes, v.id AS "variantUuid", p.id AS "productUuid", p.availability_type AS "availabilityType"
        FROM cart_items ci JOIN carts c ON c.id = ci.cart_id JOIN variants v ON v.id = ci.variant_id JOIN products p ON p.id = v.product_id
        WHERE c.legacy_id = $1 AND p.is_active = true AND v.is_active = true FOR UPDATE OF v`,
       [cartLegacyId]
@@ -149,9 +146,9 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
     );
     for (const item of cart.rows) {
       await client.query(
-        `INSERT INTO order_items (order_id, variant_id, product_id, quantity, unit_price_snapshot, subtotal)
-         VALUES ($1, $2, $3, $4::integer, $5::numeric, $4::integer * $5::numeric)`,
-        [order.rows[0].id, item.variantUuid, item.productUuid, item.quantity, item.price]
+        `INSERT INTO order_items (order_id, variant_id, product_id, quantity, unit_price_snapshot, subtotal, attributes)
+         VALUES ($1, $2, $3, $4::integer, $5::numeric, $4::integer * $5::numeric, $6::jsonb)`,
+        [order.rows[0].id, item.variantUuid, item.productUuid, item.quantity, item.price, JSON.stringify(item.attributes)]
       );
     }
     await client.query('INSERT INTO payments (legacy_id, order_id, method, status) VALUES ($1, $2, $3::payment_method, \'PENDIENTE\')', [orderLegacyId, order.rows[0].id, paymentMethod]);
@@ -319,7 +316,7 @@ export async function advanceDbOrderStatus(orderLegacyId: string, nextStatus: st
 export async function listDbPayments() {
   const result = await pool.query(`
     SELECT p.legacy_id AS id, p.status, p.method, p.external_reference AS "externalReference",
-      p.confirmed_at AS "confirmedAt", o.legacy_id AS "orderId", o.status AS "orderStatus",
+      p.confirmed_at AS "confirmedAt", p.created_at AS "createdAt", o.legacy_id AS "orderId", o.status AS "orderStatus",
       o.payment_status AS "orderPaymentStatus", o.total, u.name AS "userName", u.email
     FROM payments p
     JOIN orders o ON o.id = p.order_id
