@@ -21,7 +21,7 @@ type MadeToOrderAttributes = {
 };
 const emptyMadeToOrder: MadeToOrderAttributes = {
   size: "",
-  version: "Fan",
+  version: "",
   longSleeves: false,
   tournament: "",
   dorsal: "",
@@ -231,19 +231,21 @@ export function ProductDetailPage({
                     ))}
                   </select>
                 </label>
-                <label className="text-sm font-medium">
-                  Versión
-                  <select
-                    value={attributes.version}
-                    onChange={(event) => update("version", event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                  >
-                    <option value="">Selecciona</option>
-                    {versions.map((version) => (
-                      <option key={version}>{version}</option>
-                    ))}
-                  </select>
-                </label>
+                {!hidesVersion && (
+                  <label className="text-sm font-medium">
+                    Versión
+                    <select
+                      value={attributes.version}
+                      onChange={(event) => update("version", event.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                    >
+                      <option value="">Seleccionar</option>
+                      {versions.map((version) => (
+                        <option key={version}>{version}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="text-sm font-medium">
                   Manga larga
                   <select
