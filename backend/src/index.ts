@@ -943,24 +943,32 @@ app.use((err: unknown, _req: Request, res: Response, _next: () => void) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-async function start() {
+export async function initializeApp() {
   await initializeDatabase();
   const state = await loadState({ carts: [], orders: [], users: [] });
   if (state.carts.length > 0) carts.splice(0, carts.length, ...state.carts);
   if (state.orders.length > 0) orders.splice(0, orders.length, ...state.orders);
   if (state.users.length > 0) users.splice(0, users.length, ...state.users);
   await syncUsersToDatabase();
+}
+
+export { app };
+
+async function start() {
+  await initializeApp();
   app.listen(port, () => {
     console.log(`Lacasaca backend listening on http://localhost:${port}`);
     console.log('PostgreSQL persistence enabled');
   });
 }
 
-start().catch((error) => {
-  if (error instanceof Error && 'code' in error && error.code === '28P01') {
-    console.error('No se pudo autenticar PostgreSQL. Revisa PGUSER y PGPASSWORD en backend/.env.');
-  } else {
-    console.error('No se pudo inicializar la persistencia PostgreSQL:', error instanceof Error ? error.message : 'Error desconocido');
-  }
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((error) => {
+    if (error instanceof Error && 'code' in error && error.code === '28P01') {
+      console.error('No se pudo autenticar PostgreSQL. Revisa PGUSER y PGPASSWORD en backend/.env.');
+    } else {
+      console.error('No se pudo inicializar la persistencia PostgreSQL:', error instanceof Error ? error.message : 'Error desconocido');
+    }
+    process.exit(1);
+  });
+}
