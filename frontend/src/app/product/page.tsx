@@ -45,7 +45,9 @@ export function ProductDetailPage({
   const [attributes, setAttributes] =
     useState<MadeToOrderAttributes>(emptyMadeToOrder);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const images = product?.images ?? [];
   useEffect(() => {
     api
       .getProduct(productId)
@@ -62,6 +64,28 @@ export function ProductDetailPage({
       })
       .catch((reason: Error) => setMessage(reason.message));
   }, [productId]);
+  useEffect(() => {
+    if (!isImageViewerOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsImageViewerOpen(false);
+      }
+      if (event.key === "ArrowLeft" && images.length > 1) {
+        setSelectedImage((current) => (current - 1 + images.length) % images.length);
+      }
+      if (event.key === "ArrowRight" && images.length > 1) {
+        setSelectedImage((current) => (current + 1) % images.length);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isImageViewerOpen]);
   if (!product)
     return (
       <section className="mx-auto max-w-3xl px-6 py-12 text-center">
@@ -111,8 +135,10 @@ export function ProductDetailPage({
       : selectedVariant
         ? immediatePrice(selectedVariant.price, selectedDorsal)
         : 0;
-  const images = product.images ?? [];
   const currentImage = images[selectedImage];
+  const openImageViewer = () => {
+    if (currentImage) setIsImageViewerOpen(true);
+  };
   const update = (
     field: keyof MadeToOrderAttributes,
     value: string | boolean,
@@ -155,12 +181,24 @@ export function ProductDetailPage({
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid gap-8 p-6 md:grid-cols-2 md:p-8">
           <div>
-            <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50">
+            <div
+              className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50"
+              role={currentImage ? "button" : undefined}
+              tabIndex={currentImage ? 0 : undefined}
+              aria-label={currentImage ? "Ampliar imagen del producto" : undefined}
+              onClick={openImageViewer}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openImageViewer();
+                }
+              }}
+            >
               {currentImage && (
                 <img
                   src={currentImage}
                   alt={`${product.name} vista ${selectedImage + 1}`}
-                  className="block h-full w-full object-contain"
+                  className="block h-full w-full cursor-zoom-in object-contain"
                 />
               )}
               {images.length > 1 && (
@@ -168,7 +206,10 @@ export function ProductDetailPage({
                   <button
                     type="button"
                     aria-label="Imagen anterior"
-                    onClick={() => setSelectedImage((selectedImage - 1 + images.length) % images.length)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedImage((selectedImage - 1 + images.length) % images.length);
+                    }}
                     className="absolute left-3 rounded-full bg-white px-3 py-2 text-lg shadow"
                   >
                     ‹
@@ -176,7 +217,10 @@ export function ProductDetailPage({
                   <button
                     type="button"
                     aria-label="Imagen siguiente"
-                    onClick={() => setSelectedImage((selectedImage + 1) % images.length)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedImage((selectedImage + 1) % images.length);
+                    }}
                     className="absolute right-3 rounded-full bg-white px-3 py-2 text-lg shadow"
                   >
                     ›
@@ -378,6 +422,59 @@ export function ProductDetailPage({
           </div>
         </div>
       </div>
+      {isImageViewerOpen && currentImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-3 sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${product.name}, imagen ${selectedImage + 1}`}
+          onClick={() => setIsImageViewerOpen(false)}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar imagen ampliada"
+            onClick={() => setIsImageViewerOpen(false)}
+            className="absolute right-3 top-3 z-10 rounded-full bg-white/10 px-4 py-2 text-2xl leading-none text-white hover:bg-white/20 sm:right-6 sm:top-6"
+          >
+            ×
+          </button>
+          <img
+            src={currentImage}
+            alt={`${product.name} vista ${selectedImage + 1}`}
+            className="max-h-[calc(100vh-6rem)] max-w-full object-contain sm:max-h-[calc(100vh-7rem)]"
+            onClick={(event) => event.stopPropagation()}
+          />
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Imagen anterior"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedImage((selectedImage - 1 + images.length) % images.length);
+                }}
+                className="absolute left-2 rounded-full bg-white/15 px-4 py-2 text-3xl text-white hover:bg-white/25 sm:left-6"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Imagen siguiente"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedImage((selectedImage + 1) % images.length);
+                }}
+                className="absolute right-2 rounded-full bg-white/15 px-4 py-2 text-3xl text-white hover:bg-white/25 sm:right-6"
+              >
+                ›
+              </button>
+              <p className="absolute bottom-3 left-0 right-0 text-center text-sm text-white/80 sm:bottom-6">
+                {selectedImage + 1} / {images.length}
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }
