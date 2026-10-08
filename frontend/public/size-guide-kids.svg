@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 575">
+  <rect width="600" height="720" fill="#f8fafc"/>
+  <g font-family="Arial, sans-serif" fill="#0f172a">
+    <text x="450" y="70" text-anchor="middle" font-size="34" font-weight="700">NIÑOS</text>
+    <g font-size="16">
+      <rect x="20" y="115" width="860" height="54" fill="#13231f"/>
+      <text x="90" y="150" text-anchor="middle" fill="white">Talla</text><text x="230" y="150" text-anchor="middle" fill="white">Altura (cm)</text><text x="370" y="150" text-anchor="middle" fill="white">Año</text><text x="525" y="150" text-anchor="middle" fill="white">Comprimento (cm)</text><text x="682" y="150" text-anchor="middle" fill="white">Ancho (cm)</text><text x="817" y="150" text-anchor="middle" fill="white">Cintura (cm)</text>
+      <g fill="none" stroke="#cbd5e1" stroke-width="2"><path d="M20 169h860M20 223h860M20 277h860M20 331h860M20 385h860M20 439h860M20 493h860M20 547h860"/><path d="M160 115v432M300 115v432M440 115v432M610 115v432M755 115v432"/></g>
+      <g text-anchor="middle"><text x="90" y="205">16</text><text x="90" y="259">18</text><text x="90" y="313">20</text><text x="90" y="367">22</text><text x="90" y="421">24</text><text x="90" y="475">26</text><text x="90" y="529">28</text>
+      <text x="230" y="205">95–105</text><text x="230" y="259">105–115</text><text x="230" y="313">115–125</text><text x="230" y="367">125–135</text><text x="230" y="421">135–145</text><text x="230" y="475">145–155</text><text x="230" y="529">155–165</text>
+      <text x="370" y="205">3～4</text><text x="370" y="259">4～5</text><text x="370" y="313">5～6</text><text x="370" y="367">6～7</text><text x="370" y="421">8～9</text><text x="370" y="475">10～11</text><text x="370" y="529">12～13</text>
+      <text x="525" y="205">44</text><text x="525" y="259">47</text><text x="525" y="313">50</text><text x="525" y="367">53</text><text x="525" y="421">56</text><text x="525" y="475">59</text><text x="525" y="529">62</text>
+      <text x="682" y="205">35</text><text x="682" y="259">37</text><text x="682" y="313">39</text><text x="682" y="367">41</text><text x="682" y="421">43</text><text x="682" y="475">45</text><text x="682" y="529">47</text>
+      <text x="817" y="205">20-37</text><text x="817" y="259">21-39</text><text x="817" y="313">22-41</text><text x="817" y="367">23-42</text><text x="817" y="421">24-44</text><text x="817" y="475">25-47</text><text x="817" y="529">26-50</text></g>
+    </g>
+  </g>
+</svg>

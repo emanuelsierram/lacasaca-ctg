@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520">
+  <rect width="900" height="720" fill="#f8fafc"/>
+  <g font-family="Arial, sans-serif" fill="#0f172a">
+    <text x="450" y="70" text-anchor="middle" font-size="34" font-weight="700">MUJERES</text>
+    <g font-size="16">
+      <rect x="20" y="115" width="860" height="54" fill="#13231f"/>
+      <text x="110" y="150" text-anchor="middle" fill="white">TALLA</text>
+      <text x="330" y="150" text-anchor="middle" fill="white">ALTURA (CM)</text>
+      <text x="560" y="150" text-anchor="middle" fill="white">ANCHO (CM)</text>
+      <text x="775" y="150" text-anchor="middle" fill="white">LONGITUD (CM)</text>
+      <g fill="none" stroke="#cbd5e1" stroke-width="2">
+        <path d="M20 169h860M20 223h860M20 277h860M20 331h860M20 385h860M20 439h860M20 493h860"/>
+        <path d="M200 115v378M460 115v378M680 115v378"/>
+      </g>
+      <g text-anchor="middle">
+        <text x="110" y="205">XS</text><text x="110" y="259">S</text><text x="110" y="313">M</text>
+        <text x="110" y="367">L</text><text x="110" y="421">XL</text>
+        <text x="330" y="205">150–160</text><text x="330" y="259">160–165</text><text x="330" y="313">165–170</text>
+        <text x="330" y="367">170–175</text><text x="330" y="421">175–180</text>
+        <text x="560" y="205">40–41</text><text x="560" y="259">41–44</text><text x="560" y="313">44–47</text>
+        <text x="560" y="367">47–50</text><text x="560" y="421">50–53</text>
+        <text x="775" y="205">61–63</text><text x="775" y="259">63–66</text><text x="775" y="313">66–69</text>
+        <text x="775" y="367">69–71</text><text x="775" y="421">71–73</text>
+      </g>
+    </g>
+  </g>
+</svg>

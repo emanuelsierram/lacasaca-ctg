@@ -12,6 +12,11 @@ const tournaments = [
   "Copa Libertadores",
   "Mundial",
 ];
+const sizeGuides = [
+  { label: "", image: "/size-guide-men.svg" },
+  { label: "", image: "/size-guide-women.svg" },
+  { label: "", image: "/size-guide-kids.svg" },
+];
 type MadeToOrderAttributes = {
   size: string;
   version: string;
@@ -46,6 +51,7 @@ export function ProductDetailPage({
     useState<MadeToOrderAttributes>(emptyMadeToOrder);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [message, setMessage] = useState("");
   const images = product?.images ?? [];
   useEffect(() => {
@@ -65,11 +71,12 @@ export function ProductDetailPage({
       .catch((reason: Error) => setMessage(reason.message));
   }, [productId]);
   useEffect(() => {
-    if (!isImageViewerOpen) return;
+    if (!isImageViewerOpen && !isSizeGuideOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsImageViewerOpen(false);
+        setIsSizeGuideOpen(false);
       }
       if (event.key === "ArrowLeft" && images.length > 1) {
         setSelectedImage((current) => (current - 1 + images.length) % images.length);
@@ -85,7 +92,7 @@ export function ProductDetailPage({
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isImageViewerOpen]);
+  }, [isImageViewerOpen, isSizeGuideOpen, images.length]);
   if (!product)
     return (
       <section className="mx-auto max-w-3xl px-6 py-12 text-center">
@@ -149,7 +156,7 @@ export function ProductDetailPage({
       setMessage("Selecciona una talla para continuar.");
       return;
     }
-    const customAttributes = isMadeToOrder
+    const customAttributes: Record<string, string | boolean> = isMadeToOrder
       ? {
           size: attributes.size,
           version: attributes.version,
@@ -157,7 +164,12 @@ export function ProductDetailPage({
           tournament: attributes.tournament,
           dorsal: attributes.dorsal,
         }
-      : { ...selectedVariant.attributes, dorsal: selectedDorsal };
+      : Object.fromEntries(
+          Object.entries({
+            ...variant.attributes,
+            dorsal: selectedDorsal,
+          }).filter(([, value]) => value !== undefined),
+        ) as Record<string, string | boolean>;
     api
       .addToCart(variant.id, 1, customAttributes)
       .then(async () => {
@@ -356,6 +368,17 @@ export function ProductDetailPage({
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSizeGuideOpen(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-amber-700"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 7.5 16.5 20 20 16.5 7.5 4 4 7.5Z" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="m8 8 2-2m0 6 2-2m0 6 2-2" strokeLinecap="round" />
+                  </svg>
+                  Guía de tallas
+                </button>
                 {dorsalOptions.length > 0 && (
                   <>
                     <p className="mt-5 text-sm font-medium">Dorsal</p>
@@ -473,6 +496,43 @@ export function ProductDetailPage({
               </p>
             </>
           )}
+        </div>
+      )}
+      {isSizeGuideOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="size-guide-title"
+          onClick={() => setIsSizeGuideOpen(false)}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="size-guide-title" className="text-2xl font-bold text-slate-900">Guía de tallas</h2>
+                <p className="mt-1 text-sm text-slate-500">Consulta la medida que corresponde a cada categoría.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar guía de tallas"
+                onClick={() => setIsSizeGuideOpen(false)}
+                className="rounded-full px-3 py-1 text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid gap-5">
+              {sizeGuides.map((guide) => (
+                <figure key={guide.label} className="mx-auto w-full max-w-4xl overflow-x-auto overflow-y-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <figcaption className="border-b border-slate-200 bg-white px-4 py-3 text-center font-semibold text-slate-900">{guide.label}</figcaption>
+                  <img src={guide.image} alt={`Guía de tallas para ${guide.label.toLowerCase()}`} className={`block h-auto ${guide.label === "Niños" ? "min-w-0 w-full max-w-none sm:min-w-[900px] sm:w-auto" : "w-full"}`} />
+                </figure>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </section>
