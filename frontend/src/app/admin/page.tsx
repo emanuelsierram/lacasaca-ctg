@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api, paymentMethodLabel, type Product } from "../../api";
 import { formatCOP } from "../../currency";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 
 const categories = [
   "ALL",
@@ -46,6 +47,7 @@ function whatsappOrderMessage(order: {
 
 export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [section, setSection] = useState("inventory");
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -102,7 +104,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
             {label}
           </button>
         ))}
-        <button onClick={onLogout} className="mt-auto p-2 text-left">
+        <button onClick={() => setShowLogoutConfirmation(true)} className="mt-auto p-2 text-left">
           Salir
         </button>
       </aside>
@@ -132,60 +134,30 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
           <Users users={users} reload={load.users} setMessage={setMessage} />
         )}
       </main>
+      {showLogoutConfirmation && (
+        <ConfirmDialog
+          title="Cerrar sesión"
+          message="¿Estás seguro de que quieres salir?"
+          onConfirm={onLogout}
+          onCancel={() => setShowLogoutConfirmation(false)}
+          confirmLabel="Salir"
+          busyLabel="Saliendo..."
+        />
+      )}
     </section>
   );
 }
 
-function Confirm({
-  title,
-  action,
-  close,
-}: {
-  title: string;
-  action: () => Promise<void>;
-  close: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded bg-white p-5">
-        <strong>{title}</strong>
-        <p className="mt-2">¿Confirmas esta acción?</p>
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={close}
-            disabled={busy}
-            className="rounded border p-2"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => {
-              setBusy(true);
-              action().finally(() => {
-                setBusy(false);
-                close();
-              });
-            }}
-            disabled={busy}
-            className="rounded bg-slate-900 p-2 text-white"
-          >
-            Confirmar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 function Status({ value, options, title, onConfirm }: any) {
   const [next, setNext] = useState<string | null>(null);
   return (
     <>
       {next && (
-        <Confirm
+        <ConfirmDialog
           title={title}
-          action={() => onConfirm(next)}
-          close={() => setNext(null)}
+          message="¿Confirmas esta acción?"
+          onConfirm={() => onConfirm(next)}
+          onCancel={() => setNext(null)}
         />
       )}
       <select
@@ -271,7 +243,7 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
           </select>
         </label>
       </div>
-      {products.map((product) => (
+      {products.map((product: { id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; variants: any[]; }) => (
         <article key={product.id} className="mb-4 rounded border bg-white p-4">
           <h2 className="font-bold">{product.name}</h2>
           {product.variants.map((variant) => (
@@ -280,7 +252,6 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
               className="grid gap-3 border-t py-3 sm:grid-cols-4"
             >
               <span>
-                {variant.sku}
                 <small className="block">
                   {Object.values(variant.attributes)
                     .filter(Boolean)
@@ -330,17 +301,18 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
         </article>
       ))}
       {pendingVariant && (
-        <Confirm
+        <ConfirmDialog
           title="Actualizar variante"
-          action={() =>
+          message="¿Confirmas esta acción?"
+          onConfirm={() =>
             api
               .updateAdminVariant(pendingVariant.id, {
                 isActive: pendingVariant.isActive,
               })
-              .then(reload)
+              .then(() => reload().then(() => undefined))
               .catch(setMessage)
           }
-          close={() => setPendingVariant(null)}
+          onCancel={() => setPendingVariant(null)}
         />
       )}
     </>
@@ -645,10 +617,11 @@ function Orders({ orders, users, reload, fail }: any) {
         </table>
       </div>
       {confirm && (
-        <Confirm
+        <ConfirmDialog
           title="Eliminar pedido"
-          action={confirm}
-          close={() => setConfirm(null)}
+          message="¿Confirmas esta acción?"
+          onConfirm={confirm}
+          onCancel={() => setConfirm(null)}
         />
       )}
     </>

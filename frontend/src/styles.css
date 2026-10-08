@@ -17,6 +17,9 @@ body {
   box-sizing: border-box;
 }
 
+.catalog-mobile-search { display: block; }
+@media (min-width: 768px) { .catalog-mobile-search { display: none; } }
+
 .home-page { background: #f7f5f0; color: #13231f; }
 .home-hero { min-height: 680px; position: relative; display: grid; place-items: center; overflow: hidden; color: #fff; }
 .home-hero-image, .home-hero-overlay { position: absolute; inset: 0; height: 100%; width: 100%; }

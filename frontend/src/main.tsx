@@ -11,6 +11,7 @@ import { CheckoutView } from './checkout';
 import { OrdersPage } from './app/orders/page';
 import { OrderSuccessPage } from './app/order-success/page';
 import { ProfilePage } from './app/profile/page';
+import { ConfirmDialog } from './components/confirm-dialog';
 import { api, type Cart, type Session } from './api';
 import './styles.css';
 
@@ -20,6 +21,7 @@ const App = () => {
   const [search, setSearch] = React.useState('');
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = React.useState(false);
   const [cart, setCart] = React.useState<Cart>({ id: 'guest-cart', items: [], total: 0 });
   const [session, setSession] = React.useState<Session | null>(() => {
     const saved = localStorage.getItem('lacasaca-session');
@@ -50,6 +52,7 @@ const App = () => {
     localStorage.removeItem('lacasaca-user-id');
     navigate('auth');
   };
+  const requestLogout = () => setShowLogoutConfirmation(true);
   const completePasswordSetup = () => {
     if (!session) return;
     const next = { ...session, mustChangePassword: false };
@@ -78,18 +81,18 @@ const App = () => {
             <button onClick={() => navigate('home')}>Inicio</button>
             <button onClick={() => navigate('catalog')}>Catálogo</button>
             {route !== 'auth' && <button onClick={() => navigate('cart')} className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h2l2.2 11h10.4L20 8H6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg>Carrito ({cart.items.length})</button>}
-            {session ? <><button onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button onClick={() => navigate('admin')}>Admin</button>}<div className="relative"><button onClick={() => setProfileMenuOpen((open) => !open)} aria-expanded={profileMenuOpen} aria-haspopup="menu" className="flex max-w-40 items-center gap-2 truncate rounded-lg px-2 py-1 hover:bg-white/10"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-300 text-sm font-bold text-slate-900">{session.name.charAt(0).toUpperCase()}</span><span className="truncate">{session.name}</span><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>{profileMenuOpen && <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl bg-white p-1 text-sm text-slate-900 shadow-xl" role="menu"><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100" onClick={() => navigate('profile')} role="menuitem">Mi perfil</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100" onClick={logout} role="menuitem">Salir</button></div>}</div></> : <button onClick={() => navigate('auth')}>Entrar</button>}
+            {session ? <><button onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button onClick={() => navigate('admin')}>Admin</button>}<div className="relative"><button onClick={() => setProfileMenuOpen((open) => !open)} aria-expanded={profileMenuOpen} aria-haspopup="menu" className="flex max-w-40 items-center gap-2 truncate rounded-lg px-2 py-1 hover:bg-white/10"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-300 text-sm font-bold text-slate-900">{session.name.charAt(0).toUpperCase()}</span><span className="truncate">{session.name}</span><svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg></button>{profileMenuOpen && <div className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl bg-white p-1 text-sm text-slate-900 shadow-xl" role="menu"><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100" onClick={() => navigate('profile')} role="menuitem">Mi perfil</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100" onClick={requestLogout} role="menuitem">Salir</button></div>}</div></> : <button onClick={() => navigate('auth')}>Entrar</button>}
           </nav>
           {route !== 'auth' && <div className="flex items-center gap-2 md:hidden">
             <button onClick={() => navigate('cart')} aria-label="Abrir carrito" className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-2"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h2l2.2 11h10.4L20 8H6" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg><span>{cart.items.length}</span></button>
             <button onClick={() => setMenuOpen((open) => !open)} aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={menuOpen} className="rounded-lg p-2 hover:bg-white/10"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2"><path d={menuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 6h16M4 12h16M4 18h16'} strokeLinecap="round" /></svg></button>
           </div>}
         </div>
-        {menuOpen && <div className="mx-auto mt-4 space-y-3 border-t border-white/10 pt-4 md:hidden">{route === 'catalog' && <label className="relative block"><span className="sr-only">Buscar producto</span><svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" strokeLinecap="round" /></svg><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar..." aria-label="Buscar producto" className="w-full rounded-lg border border-white/20 bg-white px-9 py-2 text-slate-900 outline-none placeholder:text-slate-400 focus:border-amber-400" /></label>}<button className="block w-full py-2 text-left" onClick={() => navigate('home')}>Inicio</button><button className="block w-full py-2 text-left" onClick={() => navigate('catalog')}>Catálogo</button>{session ? <><button className="block w-full py-2 text-left" onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button className="block w-full py-2 text-left" onClick={() => navigate('admin')}>Admin</button>}<button className="block w-full py-2 text-left font-semibold" onClick={() => navigate('profile')}>Mi perfil</button><button className="block w-full py-2 text-left" onClick={logout}>Salir</button></> : <button className="block w-full py-2 text-left" onClick={() => navigate('auth')}>Entrar</button>}</div>}
+        {menuOpen && <div className="mx-auto mt-4 space-y-3 border-t border-white/10 pt-4 md:hidden"><button className="block w-full py-2 text-left" onClick={() => navigate('home')}>Inicio</button><button className="block w-full py-2 text-left" onClick={() => navigate('catalog')}>Catálogo</button>{session ? <><button className="block w-full py-2 text-left" onClick={() => navigate('orders')}>Mis pedidos</button>{session.role === 'ADMIN' && <button className="block w-full py-2 text-left" onClick={() => navigate('admin')}>Admin</button>}<button className="block w-full py-2 text-left font-semibold" onClick={() => navigate('profile')}>Mi perfil</button><button className="block w-full py-2 text-left" onClick={requestLogout}>Salir</button></> : <button className="block w-full py-2 text-left" onClick={() => navigate('auth')}>Entrar</button>}</div>}
       </header>
       {session?.mustChangePassword && <button onClick={() => navigate('change-password')} className="w-full bg-amber-100 px-6 py-3 text-left text-sm font-semibold text-amber-950 underline">Crea tu contraseña para acceder fácilmente a tus pedidos.</button>}
       {route === 'home' && <HomePage onOpenProduct={(id) => navigate(`product/${id}`)} onOpenCatalog={() => navigate('catalog')} />}
-      {route === 'catalog' && <CatalogPage search={search} onOpenProduct={(id) => navigate(`product/${id}`)} />}
+      {route === 'catalog' && <CatalogPage search={search} onSearch={setSearch} onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onCheckout={() => navigate('checkout')} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
       {route === 'checkout' && <CheckoutView cart={cart} session={session} onCompleted={(id, account) => {
@@ -98,6 +101,14 @@ const App = () => {
       }} />}
       {route === 'change-password' && <ChangePasswordPage onCompleted={completePasswordSetup} />}
       {route === 'profile' && session && <ProfilePage session={session} onUpdated={saveSession} onDeleted={logout} />}
+      {showLogoutConfirmation && (
+        <ConfirmDialog
+          title="Cerrar sesión"
+          message="¿Estás seguro de que quieres salir?"
+          onConfirm={logout}
+          onCancel={() => setShowLogoutConfirmation(false)}
+        />
+      )}
       {route === 'orders' && <OrdersPage />}
       {route.startsWith('order-success/') && <OrderSuccessPage orderId={route.split('/')[1]} onOrders={() => navigate('orders')} />}
       {route.startsWith('order/') && <OrdersPage selectedId={route.split('/')[1]} />}
