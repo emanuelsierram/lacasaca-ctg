@@ -1,6 +1,7 @@
 import { pool } from '../config/database';
 import { createHash } from 'node:crypto';
 import { immediatePrice, madeToOrderPrice } from '../config/pricing';
+import shipping from '@lacasaca/shared';
 
 export type DbCartItem = {
   id: string;
@@ -137,12 +138,12 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
       }
       subtotal += Number(item.price) * item.quantity;
     }
-    const shipping = subtotal > 0 ? 9990 : 0;
+    const shippingCost = subtotal > 0 ? shipping.cost : 0;
     const orderLegacyId = `order-${Date.now()}`;
     const order = await client.query<{ id: string }>(
       `INSERT INTO orders (legacy_id, user_id, customer_phone, status, payment_method, payment_status, total, shipping_cost)
       VALUES ($1, (SELECT id FROM users WHERE legacy_id = $2), $3, 'PENDIENTE', $4::payment_method, 'PENDIENTE', $5, $6) RETURNING id`,
-      [orderLegacyId, userLegacyId, customerPhone, paymentMethod, subtotal + shipping, shipping]
+      [orderLegacyId, userLegacyId, customerPhone, paymentMethod, subtotal + shippingCost, shippingCost]
     );
     for (const item of cart.rows) {
       await client.query(
@@ -154,7 +155,7 @@ export async function createDbOrder(cartLegacyId: string, paymentMethod: 'CASH_O
     await client.query('INSERT INTO payments (legacy_id, order_id, method, status) VALUES ($1, $2, $3::payment_method, \'PENDIENTE\')', [orderLegacyId, order.rows[0].id, paymentMethod]);
     await client.query('DELETE FROM cart_items WHERE cart_id = (SELECT id FROM carts WHERE legacy_id = $1)', [cartLegacyId]);
     await client.query('COMMIT');
-    return { orderId: orderLegacyId, status: 'PENDIENTE', paymentStatus: 'PENDIENTE', paymentMethod, subtotal, shippingCost: shipping, total: Number((subtotal + shipping).toFixed(2)) };
+    return { orderId: orderLegacyId, status: 'PENDIENTE', paymentStatus: 'PENDIENTE', paymentMethod, subtotal, shippingCost, total: Number((subtotal + shippingCost).toFixed(2)) };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -193,13 +194,13 @@ export async function createDbAdminOrder(input: { userLegacyId?: string | null; 
     }
     if (!orderItems.length && (!input.total || input.total <= 0)) throw new Error('Manual orders require a positive total');
     const subtotal = orderItems.reduce((total, item) => total + item.price * item.quantity, 0);
-    const shipping = orderItems.length ? 9990 : 0;
-    const orderTotal = input.total && input.total > 0 ? input.total : subtotal + shipping;
+    const shippingCost = orderItems.length ? shipping.cost : 0;
+    const orderTotal = input.total && input.total > 0 ? input.total : subtotal + shippingCost;
     const orderLegacyId = `order-admin-${Date.now()}`;
     const order = await client.query<{ id: string }>(
       `INSERT INTO orders (legacy_id, user_id, customer_phone, notes, status, payment_method, payment_status, total, shipping_cost)
        VALUES ($1, (SELECT id FROM users WHERE legacy_id = $2), $3, $4, 'PENDIENTE', $5::payment_method, 'PENDIENTE', $6, $7) RETURNING id`,
-      [orderLegacyId, input.userLegacyId ?? null, input.customerPhone ?? null, input.notes ?? null, input.paymentMethod, orderTotal, shipping]
+      [orderLegacyId, input.userLegacyId ?? null, input.customerPhone ?? null, input.notes ?? null, input.paymentMethod, orderTotal, shippingCost]
     );
     for (const item of orderItems) await client.query(
       `INSERT INTO order_items (order_id, variant_id, product_id, quantity, unit_price_snapshot, subtotal) VALUES ($1, $2, $3, $4, $5, $4 * $5)`,

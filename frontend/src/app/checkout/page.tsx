@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api, type Cart, type PaymentMethod, type Session } from '../../api';
 import { formatCOP } from '../../currency';
+import shipping from '@lacasaca/shared';
 
 export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; session: Session | null; onCompleted: (id: string, account?: Session) => void }) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('WHATSAPP_TRANSFER');
@@ -10,7 +11,7 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
   const isMadeToOrder = cart.items.length > 0 && cart.items.every((item) => item.availabilityType === 'MADE_TO_ORDER');
-  const shippingCost = cart.items.length > 0 ? 9990 : 0;
+  const shippingCost = cart.items.length > 0 ? shipping.cost : 0;
   const total = cart.total + shippingCost;
 
   const submit = (event: React.FormEvent) => {

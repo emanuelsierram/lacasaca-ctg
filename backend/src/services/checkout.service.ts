@@ -13,12 +13,12 @@ const inventoryByVariant: Record<string, number> = {
 
 import { pricingService } from './pricing.service';
 import { inventoryService } from './inventory.service';
+import shipping from '@lacasaca/shared';
 
 export const checkoutService = {
   createOrder(input: CheckoutInput) {
-    const definedShippingCost = 9.99;
     const totalBeforeShipping = input.cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const shippingCost = totalBeforeShipping > 0 ? definedShippingCost : 0;
+    const shippingCost = totalBeforeShipping > 0 ? shipping.cost : 0;
 
     for (const item of input.cartItems) {
       const stock = inventoryByVariant[item.variantId] ?? 0;
