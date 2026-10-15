@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AdminPage } from './app/admin/page';
 import { HomePage } from './app/home/page';
+import { AboutPage } from './app/about/page';
 import { AuthPage } from './app/auth/page';
 import { ChangePasswordPage } from './app/auth/change-password';
 import { CatalogPage } from './app/catalog/page';
@@ -92,6 +93,7 @@ const App = () => {
       </header>
       {session?.mustChangePassword && <button onClick={() => navigate('change-password')} className="w-full bg-amber-100 px-6 py-3 text-left text-sm font-semibold text-amber-950 underline">Crea tu contraseña para acceder fácilmente a tus pedidos.</button>}
       {route === 'home' && <HomePage onOpenProduct={(id) => navigate(`product/${id}`)} onOpenCatalog={() => navigate('catalog')} />}
+      {route === 'about' && <AboutPage onOpenCatalog={() => navigate('catalog')} />}
       {route === 'catalog' && <CatalogPage search={search} onSearch={setSearch} onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onCheckout={() => navigate('checkout')} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
