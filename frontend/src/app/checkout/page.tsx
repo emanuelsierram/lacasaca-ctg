@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api, type Cart, type PaymentMethod, type Session } from './api';
-import { formatCOP } from './currency';
+import { api, type Cart, type PaymentMethod, type Session } from '../../api';
+import { formatCOP } from '../../currency';
 
 export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; session: Session | null; onCompleted: (id: string, account?: Session) => void }) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('WHATSAPP_TRANSFER');
