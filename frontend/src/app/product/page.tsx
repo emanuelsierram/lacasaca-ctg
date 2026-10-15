@@ -53,11 +53,17 @@ export function ProductDetailPage({
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const images = product?.images ?? [];
   useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setMessage("");
+    setProduct(null);
     api
       .getProduct(productId)
       .then((next) => {
+        if (!active) return;
         setProduct(next);
         setSelectedVariantId(
           next.variants.find((variant) => variant.isActive)?.id ?? "",
@@ -68,7 +74,15 @@ export function ProductDetailPage({
         setSelectedImage(0);
         setAttributes(emptyMadeToOrder);
       })
-      .catch((reason: Error) => setMessage(reason.message));
+      .catch((reason: Error) => {
+        if (active) setMessage(reason.message);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [productId]);
   useEffect(() => {
     if (!isImageViewerOpen && !isSizeGuideOpen) return;
@@ -93,6 +107,20 @@ export function ProductDetailPage({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isImageViewerOpen, isSizeGuideOpen, images.length]);
+  if (isLoading)
+    return (
+      <section
+        className="mx-auto flex min-h-64 max-w-3xl flex-col items-center justify-center gap-3 px-6 py-12 text-center text-slate-600"
+        role="status"
+        aria-live="polite"
+      >
+        <span
+          className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-amber-600"
+          aria-hidden="true"
+        />
+        <span>Cargando producto...</span>
+      </section>
+    );
   if (!product)
     return (
       <section className="mx-auto max-w-3xl px-6 py-12 text-center">
