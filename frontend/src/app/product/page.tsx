@@ -4,7 +4,6 @@ import { immediatePrice, madeToOrderPrice } from "../../pricing";
 import { formatCOP } from "../../currency";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
-const versions = ["Fan", "Player"];
 const tournaments = [
   "Liga",
   "Copa",
@@ -19,14 +18,12 @@ const sizeGuides = [
 ];
 type MadeToOrderAttributes = {
   size: string;
-  version: string;
   longSleeves: boolean;
   tournament: string;
   dorsal: string;
 };
 const emptyMadeToOrder: MadeToOrderAttributes = {
   size: "",
-  version: "",
   longSleeves: false,
   tournament: "",
   dorsal: "",
@@ -47,6 +44,7 @@ export function ProductDetailPage({
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedDorsal, setSelectedDorsal] = useState("");
+  const [selectedTournament, setSelectedTournament] = useState("");
   const [attributes, setAttributes] =
     useState<MadeToOrderAttributes>(emptyMadeToOrder);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -71,6 +69,7 @@ export function ProductDetailPage({
         const firstVariant = next.variants.find((variant) => variant.isActive);
         setSelectedSize(String(firstVariant?.attributes.size ?? ""));
         setSelectedDorsal(String(firstVariant?.attributes.dorsal ?? ""));
+        setSelectedTournament(String(firstVariant?.attributes.tournament ?? ""));
         setSelectedImage(0);
         setAttributes(emptyMadeToOrder);
       })
@@ -129,7 +128,6 @@ export function ProductDetailPage({
     );
   const variants = product.variants.filter((variant) => variant.isActive);
   const isMadeToOrder = product.availabilityType === "MADE_TO_ORDER";
-  const hidesVersion = ["RETROS", "NINOS", "FEMENINO"].includes(product.category);
   const availableSizes = [
     ...new Set(
       variants.map((variant) => String(variant.attributes.size ?? "Única")),
@@ -153,9 +151,21 @@ export function ProductDetailPage({
   const noDorsalVariant = sizeVariants.find(
     (variant) => !String(variant.attributes.dorsal ?? "").trim(),
   );
+  const tournamentOptions = [
+    ...new Set(
+      sizeVariants.map((variant) =>
+        String(variant.attributes.tournament ?? "").trim(),
+      ),
+    ),
+  ];
   const selectedVariant = isMadeToOrder
     ? variants.find((variant) => variant.id === selectedVariantId)
     : sizeVariants.find(
+        (variant) =>
+          String(variant.attributes.dorsal ?? "").trim() === selectedDorsal &&
+          String(variant.attributes.tournament ?? "").trim() === selectedTournament,
+      ) ??
+      sizeVariants.find(
         (variant) =>
           String(variant.attributes.dorsal ?? "").trim() === selectedDorsal,
       ) ??
@@ -187,7 +197,6 @@ export function ProductDetailPage({
     const customAttributes: Record<string, string | boolean> = isMadeToOrder
       ? {
           size: attributes.size,
-          version: attributes.version,
           "long-sleeves": attributes.longSleeves,
           tournament: attributes.tournament,
           dorsal: attributes.dorsal,
@@ -315,21 +324,6 @@ export function ProductDetailPage({
                     ))}
                   </select>
                 </label>
-                {!hidesVersion && (
-                  <label className="text-sm font-medium">
-                    Versión
-                    <select
-                      value={attributes.version}
-                      onChange={(event) => update("version", event.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                    >
-                      <option value="">Seleccionar</option>
-                      {versions.map((version) => (
-                        <option key={version}>{version}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
                 <label className="text-sm font-medium">
                   Manga larga
                   <select
@@ -388,6 +382,9 @@ export function ProductDetailPage({
                             (variant) => !String(variant.attributes.dorsal ?? "").trim(),
                           ) ?? nextVariants[0];
                         setSelectedDorsal(String(nextVariant?.attributes.dorsal ?? ""));
+                        setSelectedTournament(
+                          String(nextVariant?.attributes.tournament ?? ""),
+                        );
                         setSelectedVariantId(nextVariant?.id ?? "");
                       }}
                       className={`rounded-xl border px-4 py-2 ${selectedSize === size ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
@@ -414,7 +411,20 @@ export function ProductDetailPage({
                       {noDorsalVariant && (
                         <button
                           type="button"
-                          onClick={() => setSelectedDorsal("")}
+                          onClick={() => {
+                            const nextVariant =
+                              sizeVariants.find(
+                              (variant) =>
+                                !String(variant.attributes.dorsal ?? "").trim() &&
+                                String(variant.attributes.tournament ?? "").trim() ===
+                                  selectedTournament,
+                              ) ?? noDorsalVariant;
+                            setSelectedDorsal("");
+                            setSelectedTournament(
+                              String(nextVariant?.attributes.tournament ?? ""),
+                            );
+                            setSelectedVariantId(nextVariant?.id ?? "");
+                          }}
                           className={`rounded-xl border px-4 py-2 ${!selectedDorsal ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
                         >
                           Sin dorsal
@@ -424,7 +434,26 @@ export function ProductDetailPage({
                         <button
                           key={dorsal}
                           type="button"
-                          onClick={() => setSelectedDorsal(dorsal)}
+                          onClick={() => {
+                            const nextVariant =
+                              sizeVariants.find(
+                                (variant) =>
+                                  String(variant.attributes.dorsal ?? "").trim() ===
+                                    dorsal &&
+                                  String(variant.attributes.tournament ?? "").trim() ===
+                                    selectedTournament,
+                              ) ??
+                              sizeVariants.find(
+                                (variant) =>
+                                  String(variant.attributes.dorsal ?? "").trim() ===
+                                  dorsal,
+                              );
+                            setSelectedDorsal(dorsal);
+                            setSelectedTournament(
+                              String(nextVariant?.attributes.tournament ?? ""),
+                            );
+                            setSelectedVariantId(nextVariant?.id ?? "");
+                          }}
                           className={`rounded-xl border px-4 py-2 ${selectedDorsal === dorsal ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
                         >
                           {dorsal}
@@ -433,14 +462,42 @@ export function ProductDetailPage({
                     </div>
                   </>
                 )}
-                <div className="mt-5 grid gap-2 text-sm text-slate-600">
-                  {!hidesVersion && selectedVariant?.attributes.version && (
-                    <p>Versión: {String(selectedVariant.attributes.version)}</p>
-                  )}
-                  {selectedVariant?.attributes.tournament && (
-                    <p>Torneo: {String(selectedVariant.attributes.tournament)}</p>
-                  )}
-                </div>
+                {tournamentOptions.length > 1 && (
+                  <>
+                    <p className="mt-5 text-sm font-medium">Torneo</p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {tournamentOptions.map((tournament) => (
+                        <button
+                          key={tournament || "sin-torneo"}
+                          type="button"
+                          onClick={() => {
+                            const nextVariant =
+                              sizeVariants.find(
+                                (variant) =>
+                                  String(variant.attributes.dorsal ?? "").trim() ===
+                                    selectedDorsal &&
+                                  String(variant.attributes.tournament ?? "").trim() ===
+                                    tournament,
+                              ) ??
+                              sizeVariants.find(
+                                (variant) =>
+                                  String(variant.attributes.tournament ?? "").trim() ===
+                                  tournament,
+                              );
+                            setSelectedDorsal(
+                              String(nextVariant?.attributes.dorsal ?? ""),
+                            );
+                            setSelectedTournament(tournament);
+                            setSelectedVariantId(nextVariant?.id ?? "");
+                          }}
+                          className={`rounded-xl border px-4 py-2 ${selectedTournament === tournament ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"}`}
+                        >
+                          {tournament || "Sin torneo"}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
             <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-5">
