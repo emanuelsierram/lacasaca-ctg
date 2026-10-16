@@ -243,7 +243,8 @@ FROM (VALUES
   ('prod-017', 'fc-barcelona-2026-27-away', 'FC Barcelona 2026/27 Away', 'ACTUALES'),
   ('prod-020', 'bayern-munich-2026-27-away', 'Bayern Munich 2026/27 Luis Diaz #14', 'ACTUALES'),
   ('prod-021', 'colombia-1994', 'Colombia 1994', 'RETROS'),
-  ('prod-022', 'real-madrid-2026-27-away', 'Real Madrid 2026/27 Away', 'ACTUALES')
+  ('prod-022', 'real-madrid-2026-27-away', 'Real Madrid 2026/27 Away', 'ACTUALES'),
+  ('prod-024', 'colombia-1998', 'Colombia 1998 Valderrama #10', 'RETROS')
 ) AS seed(legacy_id, slug, name, category)
 JOIN categories c ON c.name = seed.category::product_category;
 
@@ -287,7 +288,8 @@ FROM (VALUES
   ('var-028', 'prod-020', 'BAY-2026-27-LUIS-DIAZ-L-FAN', '{"size":"L","version":"FAN","dorsal":"#14 Luis Díaz"}', 100000, 1),
   ('var-029', 'prod-021', 'COL-1994-L-FAN', '{"size":"L","version":"FAN"}', 110000, 1),
   ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1),
-  ('var-031', 'prod-023', 'FR-1996', '{}', 110000, 99)
+  ('var-031', 'prod-023', 'FR-1996', '{}', 110000, 99),
+  ('var-032', 'prod-024', 'COL-1998-VALDERRAMA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Valderrama"}', 140000, 1)
 ) AS seed(legacy_id, product_legacy_id, sku, attributes, price, stock)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
 
@@ -347,6 +349,8 @@ FROM (VALUES
   ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996.webp', 1),
   ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-front.webp', 2),
   ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-back.webp', 3),
-  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-shield.webp', 4)
+  ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-shield.webp', 4),
+  ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998.webp', 1),
+  ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998-back.webp', 2)
 ) AS seed(product_legacy_id, image_url, sort_order)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
