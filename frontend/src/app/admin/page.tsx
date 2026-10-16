@@ -174,7 +174,8 @@ function Status({ value, options, title, onConfirm }: any) {
 }
 
 function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
-  const [show, setShow] = useState(false);
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [showVariantForm, setShowVariantForm] = useState(false);
   const [pendingVariant, setPendingVariant] = useState<{
     id: string;
     isActive: boolean;
@@ -189,17 +190,35 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
     <>
       <div className="mb-5 flex justify-between">
         <h1 className="text-3xl font-bold">Inventario y catálogo</h1>
-        <button
-          onClick={() => setShow(!show)}
-          className="rounded bg-slate-900 p-2 text-white"
-        >
-          {show ? "Cerrar" : "Crear producto"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowProductForm(!showProductForm)}
+            className="rounded bg-slate-900 p-2 text-white"
+          >
+            {showProductForm ? "Cerrar" : "Crear producto"}
+          </button>
+          <button
+            onClick={() => setShowVariantForm(!showVariantForm)}
+            className="rounded bg-amber-400 p-2 text-black"
+          >
+            {showVariantForm ? "Cerrar" : "Crear variante"}
+          </button>
+        </div>
       </div>
-      {show && (
+      {showProductForm && (
         <ProductForm
           saved={() => {
-            setShow(false);
+            setShowProductForm(false);
+            reload();
+          }}
+          setMessage={setMessage}
+        />
+      )}
+      {showVariantForm && (
+        <VariantForm
+          products={products}
+          saved={() => {
+            setShowVariantForm(false);
             reload();
           }}
           setMessage={setMessage}
@@ -326,23 +345,9 @@ function ProductForm({ saved, setMessage }: any) {
     description: "",
     category: "ACTUALES",
     availabilityType: "IMMEDIATE",
-    price: "",
-    stock: "",
-    attributes: {
-      size: "",
-      version: "",
-      "long-sleeves": false,
-      tournament: "",
-      dorsal: "",
-    },
   });
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const attributes = Object.fromEntries(
-      Object.entries(form.attributes).filter(
-        ([key, value]) => key === "long-sleeves" || String(value).trim(),
-      ),
-    );
     api
       .createAdminProduct({
         name: form.name,
@@ -350,13 +355,7 @@ function ProductForm({ saved, setMessage }: any) {
         description: form.description,
         category: form.category,
         availabilityType: form.availabilityType,
-        variants: [
-          {
-            attributes,
-            price: Number(form.price),
-            stock: Number(form.stock),
-          },
-        ],
+        variants: [],
       })
       .then(saved)
       .catch((error: Error) => setMessage(error.message));
@@ -366,7 +365,7 @@ function ProductForm({ saved, setMessage }: any) {
       onSubmit={submit}
       className="mb-5 grid gap-3 rounded bg-amber-50 p-4 md:grid-cols-2"
     >
-      <h2 className="font-bold md:col-span-2">Crear producto y variante</h2>
+      <h2 className="font-bold md:col-span-2">Crear producto</h2>
       <label>
         Nombre
         <input
@@ -419,99 +418,180 @@ function ProductForm({ saved, setMessage }: any) {
           <option>MADE_TO_ORDER</option>
         </select>
       </label>
-      <label>
-        Precio
-        <input
-          required
-          type="number"
-          value={form.price}
-          onChange={(e) => setForm({ ...form, price: e.target.value })}
-          className="mt-1 w-full rounded border p-2"
-        />
-      </label>
-      <label>
-        Stock
-        <input
-          required
-          type="number"
-          value={form.stock}
-          onChange={(e) => setForm({ ...form, stock: e.target.value })}
-          className="mt-1 w-full rounded border p-2"
-        />
-      </label>
-      <fieldset className="grid gap-3 md:col-span-2 md:grid-cols-2">
-        <legend className="font-semibold">Atributos de la variante</legend>
-        <label>
-          Talla
-          <input
-            value={form.attributes.size}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                attributes: { ...form.attributes, size: e.target.value },
-              })
-            }
-            className="mt-1 w-full rounded border p-2"
-          />
-        </label>
-        <label>
-          Versión
-          <input
-            value={form.attributes.version}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                attributes: { ...form.attributes, version: e.target.value },
-              })
-            }
-            className="mt-1 w-full rounded border p-2"
-          />
-        </label>
-        <label>
-          Torneo
-          <input
-            value={form.attributes.tournament}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                attributes: { ...form.attributes, tournament: e.target.value },
-              })
-            }
-            className="mt-1 w-full rounded border p-2"
-          />
-        </label>
-        <label>
-          Dorsal
-          <input
-            value={form.attributes.dorsal}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                attributes: { ...form.attributes, dorsal: e.target.value },
-              })
-            }
-            className="mt-1 w-full rounded border p-2"
-          />
-        </label>
-        <label className="flex items-center gap-2 md:col-span-2">
-          <input
-            type="checkbox"
-            checked={form.attributes["long-sleeves"]}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                attributes: {
-                  ...form.attributes,
-                  "long-sleeves": e.target.checked,
-                },
-              })
-            }
-          />
-          Mangas largas
-        </label>
-      </fieldset>
       <button className="rounded bg-slate-900 p-2 text-white md:col-span-2">
         Guardar
+      </button>
+    </form>
+  );
+}
+
+function VariantForm({ products, saved, setMessage }: any) {
+  const [form, setForm] = useState({
+    productId: "",
+    size: "",
+    version: "PLAYER",
+    tournament: "",
+    longSleeves: false,
+    dorsal: "",
+    price: "",
+    stock: "",
+  });
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductOptions, setShowProductOptions] = useState(false);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!form.productId) {
+      setMessage("Selecciona un producto de la lista.");
+      return;
+    }
+    const attributes = {
+      size: form.size,
+      version: form.version,
+      "long-sleeves": form.longSleeves,
+      ...(form.tournament ? { tournament: form.tournament } : {}),
+      ...(form.dorsal.trim() ? { dorsal: form.dorsal.trim() } : {}),
+    };
+    api
+      .createAdminVariant(form.productId, {
+        attributes,
+        price: Number(form.price),
+        stock: Number(form.stock),
+        availabilityType: "IMMEDIATE",
+      })
+      .then(() => {
+        setMessage("Variante guardada con éxito.");
+        saved();
+      })
+      .catch((error: Error) => setMessage(error.message));
+  };
+  const filteredProducts = products.filter((product: Product) =>
+    product.name.toLowerCase().includes(productSearch.toLowerCase()),
+  );
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mb-5 grid gap-3 rounded bg-amber-50 p-4 md:grid-cols-2"
+    >
+      <h2 className="font-bold md:col-span-2">Crear variante</h2>
+      <label className="relative">
+        Producto
+        <input
+          required
+          value={productSearch}
+          placeholder="Buscar producto por nombre"
+          onFocus={() => setShowProductOptions(true)}
+          onChange={(event) => {
+            setProductSearch(event.target.value);
+            setShowProductOptions(true);
+            setForm({ ...form, productId: "" });
+          }}
+          className="mt-1 w-full rounded border p-2"
+        />
+        {showProductOptions && (
+          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded border bg-white shadow">
+            {filteredProducts.map((product: Product) => (
+                <button
+                  type="button"
+                  key={product.id}
+                  onClick={() => {
+                    setForm({ ...form, productId: product.id });
+                    setProductSearch(product.name);
+                    setShowProductOptions(false);
+                  }}
+                  className="block w-full border-b p-2 text-left last:border-b-0 hover:bg-amber-50"
+                >
+                  {product.name}
+                </button>
+            ))}
+            {filteredProducts.length === 0 && (
+              <p className="p-2 text-slate-500">No se encontraron productos.</p>
+            )}
+          </div>
+        )}
+      </label>
+      <label>
+        Talla
+        <select
+          required
+          value={form.size}
+          onChange={(event) => setForm({ ...form, size: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        >
+          <option value="" disabled>Selecciona la talla</option>
+          {["S", "M", "L", "XL", "XXL"].map((size) => <option key={size}>{size}</option>)}
+        </select>
+      </label>
+      <label>
+        Versión
+        <select
+          value={form.version}
+          onChange={(event) => setForm({ ...form, version: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        >
+          <option value="PLAYER">Player</option>
+          <option value="FAN">Fan</option>
+        </select>
+      </label>
+      <label>
+        Torneo
+        <select
+          value={form.tournament}
+          onChange={(event) => setForm({ ...form, tournament: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        >
+          <option value="">Ninguno</option>
+          {["Liga", "Copa", "Champions League", "Copa Libertadores", "Mundial"].map((tournament) => (
+            <option key={tournament}>{tournament}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Manga larga
+        <select
+          value={String(form.longSleeves)}
+          onChange={(event) => setForm({ ...form, longSleeves: event.target.value === "true" })}
+          className="mt-1 w-full rounded border p-2"
+        >
+          <option value="false">No</option>
+          <option value="true">Sí</option>
+        </select>
+      </label>
+      <label>
+        Dorsal
+        <input
+          value={form.dorsal}
+          onChange={(event) => setForm({ ...form, dorsal: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        />
+      </label>
+      <label>
+        Precio *
+        <input
+          required
+          min="1"
+          step="1"
+          type="number"
+          value={form.price}
+          onChange={(event) => setForm({ ...form, price: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        />
+      </label>
+      <label>
+        Stock *
+        <input
+          required
+          min="0"
+          step="1"
+          type="number"
+          value={form.stock}
+          onChange={(event) => setForm({ ...form, stock: event.target.value })}
+          className="mt-1 w-full rounded border p-2"
+        />
+      </label>
+      <button className="rounded bg-slate-900 p-2 text-white md:col-span-2">
+        Guardar variante
       </button>
     </form>
   );
