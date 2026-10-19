@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api, type Cart } from './api';
-import { formatCOP } from './currency';
+import { api, type Cart } from '../../api';
+import { formatCOP } from '../../currency';
 
 export function CartView({ cart, onChange, onCheckout }: { cart: Cart; onChange: () => void; onCheckout: () => void }) {
   const [message, setMessage] = useState('');

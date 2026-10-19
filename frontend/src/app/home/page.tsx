@@ -6,7 +6,7 @@ const heroImage = 'https://cccartagena.com/wp-content/uploads/2019/01/cartagena1
 
 const slides = [
   {
-    image: 'https://assets.goal.com/images/v3/blt0562414eefe1cf28/Manchester%20United%2026-27%20away%20kit%20.jpg?auto=webp&format=pjpg&width=3840&quality=60',
+    image: 'https://store.fcbarcelona.com/cdn/shop/files/11-Raphinha_a3bb2b10-8874-4845-91f4-bfa880508b4a.jpg?v=1782913628&width=2560',
     label: 'Pasión que se lleva puesta',
   },
   {
@@ -14,7 +14,7 @@ const slides = [
     label: 'Tu equipo, tu historia',
   },
   {
-    image: 'https://assets.goal.com/images/v3/blt1eeac0e49031b42a/Juventus%2026:27%20home%20kit%20.jpg',
+    image: 'https://img.asmedia.epimg.net/resizer/v2/TZHTR6AMNRDY7G46CL6SDUSHAI.jpg?auth=367fbd6bdd63949d20aa3472e55812ce66598beab0fe60840db19835c198c939&width=1472&height=828&focal=5105%2C2628',
     label: 'Viste el momento',
   },
 ];
