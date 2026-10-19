@@ -283,13 +283,15 @@ FROM (VALUES
   ('var-023', 'prod-017', 'BAR-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1),
   ('var-024', 'prod-017', 'BAR-2026-27-AWAY-L-PLAYER', '{"size":"L","version":"PLAYER","tournament":"Champions League"}', 80000, 1),
   ('var-025', 'prod-005', 'COL-2026-LUIS-DIAZ-XL-PLAYER', '{"size":"XL","version":"PLAYER","dorsal":"#7 Luis Díaz","tournament":"Mundial"}', 80000, 1),
-  ('var-026', 'prod-015', 'RM-2027-MBAPPE-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 80000, 1),
-  ('var-027', 'prod-015', 'RM-2027-MBAPPE-M-FAN', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 80000, 1),
+  ('var-026', 'prod-015', 'RM-2027-MBAPPE-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 100000, 1),
+  ('var-027', 'prod-015', 'RM-2027-MBAPPE-M-FAN', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe","tournament":"Champions League"}', 100000, 1),
   ('var-028', 'prod-020', 'BAY-2026-27-LUIS-DIAZ-L-FAN', '{"size":"L","version":"FAN","dorsal":"#14 Luis Díaz"}', 100000, 1),
   ('var-029', 'prod-021', 'COL-1994-L-FAN', '{"size":"L","version":"FAN"}', 110000, 1),
   ('var-030', 'prod-022', 'RM-2026-27-AWAY-L-FAN', '{"size":"L","version":"FAN","tournament":"Champions League"}', 80000, 1),
   ('var-031', 'prod-023', 'FR-1996', '{}', 110000, 99),
-  ('var-032', 'prod-024', 'COL-1998-VALDERRAMA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Valderrama"}', 140000, 1)
+  ('var-032', 'prod-024', 'COL-1998-VALDERRAMA-L-FAN', '{"size":"L","version":"FAN","dorsal":"#10 Valderrama"}', 140000, 1),
+  ('var-033', 'prod-014', 'BAR-2026-27-L-PLAYER', '{"size":"L","version":"PLAYER","tournament":"Champions League"}', 80000, 1),
+  ('var-034', 'prod-015', 'RM-2027-MBAPPE-M-FAN-NOPATCH', '{"size":"M","version":"FAN","dorsal":"#10 Mbappe"}', 100000, 1)
 ) AS seed(legacy_id, product_legacy_id, sku, attributes, price, stock)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
 

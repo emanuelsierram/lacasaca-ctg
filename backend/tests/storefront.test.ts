@@ -44,7 +44,7 @@ test('checkout service creates order with server-calculated total and price snap
 
   assert.equal(order.paymentStatus, 'PENDIENTE');
   assert.equal(order.status, 'PENDIENTE');
-  assert.equal(order.total, 139.98);
+  assert.equal(order.total, 129.99);
   assert.equal(order.items[0].unitPriceSnapshot, 129.99);
   assert.equal(order.items[0].subtotal, 129.99);
 });

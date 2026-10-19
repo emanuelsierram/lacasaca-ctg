@@ -1,8 +1,4 @@
-export const MADE_TO_ORDER_SURCHARGES = {
-  longSleeves: 20000,
-  tournament: 5000,
-  dorsal: 20000
-} as const;
+import { MADE_TO_ORDER_SURCHARGES } from '@lacasaca/shared/pricing';
 
 export function madeToOrderPrice(basePrice: number, attributes: Record<string, string | boolean>) {
   return basePrice
@@ -12,5 +8,5 @@ export function madeToOrderPrice(basePrice: number, attributes: Record<string, s
 }
 
 export function immediatePrice(basePrice: number, attributes: Record<string, string | boolean> = {}) {
-  return basePrice + (typeof attributes.dorsal === 'string' && attributes.dorsal.trim() ? MADE_TO_ORDER_SURCHARGES.dorsal : 0);
+  return basePrice;
 }

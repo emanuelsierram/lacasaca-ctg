@@ -3,13 +3,13 @@ import test from 'node:test';
 
 import { immediatePrice, madeToOrderPrice } from '../src/config/pricing';
 
-test('immediate products add only the dorsal surcharge', () => {
+test('immediate variant prices are not increased by custom attributes', () => {
   assert.equal(immediatePrice(80000, {}), 80000);
-  assert.equal(immediatePrice(80000, { dorsal: '#7 Luis Díaz' }), 100000);
+  assert.equal(immediatePrice(80000, { dorsal: '#7 Luis Díaz' }), 80000);
   assert.equal(immediatePrice(80000, { tournament: 'Mundial', 'long-sleeves': true }), 80000);
 });
 
-test('made-to-order pricing keeps all existing surcharges', () => {
+test('made-to-order prices keep attribute surcharges', () => {
   assert.equal(
     madeToOrderPrice(80000, { 'long-sleeves': true, tournament: 'Mundial', dorsal: '#10 Messi' }),
     125000

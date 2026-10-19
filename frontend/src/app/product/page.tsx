@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, type Product } from "../../api";
-import { immediatePrice, madeToOrderPrice } from "../../pricing";
+import { madeToOrderPrice } from "../../pricing";
 import { formatCOP } from "../../currency";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
@@ -63,10 +63,14 @@ export function ProductDetailPage({
       .then((next) => {
         if (!active) return;
         setProduct(next);
-        setSelectedVariantId(
-          next.variants.find((variant) => variant.isActive)?.id ?? "",
-        );
-        const firstVariant = next.variants.find((variant) => variant.isActive);
+        const firstVariant = next.variants
+          .filter((variant) => variant.isActive)
+          .reduce(
+            (lowest, variant) =>
+              !lowest || variant.price < lowest.price ? variant : lowest,
+            next.variants.find((variant) => variant.isActive),
+          );
+        setSelectedVariantId(firstVariant?.id ?? "");
         setSelectedSize(String(firstVariant?.attributes.size ?? ""));
         setSelectedDorsal(String(firstVariant?.attributes.dorsal ?? ""));
         setSelectedTournament(String(firstVariant?.attributes.tournament ?? ""));
@@ -170,16 +174,14 @@ export function ProductDetailPage({
           String(variant.attributes.dorsal ?? "").trim() === selectedDorsal,
       ) ??
       noDorsalVariant;
-  const baseVariant = variants[0] ?? selectedVariant;
   const available = isMadeToOrder
     ? Boolean(attributes.size)
     : Boolean(selectedVariant && selectedVariant.stock > 0);
+  const baseVariant = selectedVariant ?? variants[0];
   const price =
     isMadeToOrder && baseVariant
       ? madeToOrderPrice(baseVariant.price, attributes)
-      : selectedVariant
-        ? immediatePrice(selectedVariant.price, selectedDorsal)
-        : 0;
+      : selectedVariant?.price ?? 0;
   const currentImage = images[selectedImage];
   const openImageViewer = () => {
     if (currentImage) setIsImageViewerOpen(true);
