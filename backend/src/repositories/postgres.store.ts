@@ -1,6 +1,6 @@
 import { pool } from '../config/database';
 import { createHash } from 'node:crypto';
-import { immediatePrice, madeToOrderPrice } from '../config/pricing';
+import { madeToOrderPrice } from '../config/pricing';
 import shipping from '@lacasaca/shared';
 
 export type DbCartItem = {
@@ -81,7 +81,7 @@ export async function addDbCartItem(cartLegacyId: string, variantLegacyId: strin
   }
   const unitPrice = found.productAvailabilityType === 'MADE_TO_ORDER'
     ? madeToOrderPrice(Number(found.price), attributes ?? {})
-    : immediatePrice(Number(found.price), attributes);
+    : Number(found.price);
   const attributesKey = selectedAttributes ? createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(selectedAttributes).sort(([a], [b]) => a.localeCompare(b))))).digest('hex').slice(0, 16) : '';
   const legacyItemId = `cart-item-${cartLegacyId}-${selectedVariantId}${attributesKey ? `-${attributesKey}` : ''}`;
   await pool.query(
