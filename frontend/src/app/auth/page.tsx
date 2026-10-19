@@ -68,6 +68,10 @@ export function AuthPage({
           setPassword("");
           setPasswordConfirmation("");
           setToken("");
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("resetToken");
+          cleanUrl.hash = "auth";
+          window.history.replaceState(null, "", cleanUrl);
         })
         .catch((reason: Error) => setMessage(reason.message));
       return;

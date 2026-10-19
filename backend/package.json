@@ -10,6 +10,7 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@lacasaca/shared": "file:../shared",
     "@types/pg": "^8.23.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",

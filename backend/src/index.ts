@@ -710,16 +710,58 @@ app.post('/api/admin/catalog/products/:id/variants', async (req: Request, res: R
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
   if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
   const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { sku, attributes = {}, price, stock = 0, isActive = true } = req.body as Record<string, any>;
-  if (!sku || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) return res.status(400).json({ message: 'Invalid variant data' });
-  const id = `var-${Date.now()}`;
-  const result = await pool.query<{ id: string }>(
-    `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
-     SELECT $1, p.id, $2, $3::jsonb, $4, $5, $6, p.availability_type FROM products p WHERE p.legacy_id = $7 RETURNING legacy_id AS id`,
-    [id, sku, JSON.stringify(attributes), Number(price), Number(stock), isActive, productId]
-  );
-  if (!result.rowCount) return res.status(404).json({ message: 'Product not found' });
-  return res.status(201).json({ id });
+  const { attributes = {}, price, stock = 0, availabilityType = 'IMMEDIATE', isActive = true } = req.body as Record<string, any>;
+  if (!Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0 || !['IMMEDIATE', 'MADE_TO_ORDER'].includes(availabilityType)) return res.status(400).json({ message: 'Invalid variant data' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [391847]);
+    const product = await client.query<{ id: string; slug: string; category: Category }>(
+      `SELECT p.id, p.slug, c.name AS category
+       FROM products p
+       JOIN categories c ON c.id = p.category_id
+       WHERE p.legacy_id = $1
+       FOR SHARE`,
+      [productId]
+    );
+    if (!product.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const sequence = await client.query<{ next: string }>(
+      `SELECT (COALESCE(MAX((substring(legacy_id from '^var-([0-9]+)$'))::bigint), 0) + 1)::text AS next
+       FROM variants`
+    );
+    const id = `var-${sequence.rows[0].next}`;
+    const variantAttributes = attributes as Record<string, string | boolean>;
+    const attributeValues = ['size', 'version']
+      .map((key) => variantAttributes[key])
+      .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+      .map((value) => value.trim());
+    const categoryPrefix = product.rows[0].category === 'FEMENINO'
+      ? 'F'
+      : product.rows[0].category === 'NINOS'
+        ? 'KID'
+        : '';
+    const sku = [product.rows[0].slug, categoryPrefix, ...attributeValues]
+      .filter(Boolean)
+      .join('-')
+      .toUpperCase();
+    const result = await client.query<{ id: string; sku: string }>(
+      `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
+       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::availability_type)
+       RETURNING legacy_id AS id, sku`,
+      [id, product.rows[0].id, sku, JSON.stringify(attributes), Number(price), Number(stock), isActive, availabilityType]
+    );
+    await client.query('COMMIT');
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to create variant' });
+  } finally {
+    client.release();
+  }
 });
 
 app.delete('/api/admin/catalog/variants/:id', async (req: Request, res: Response) => {
