@@ -45,7 +45,7 @@ function whatsappOrderMessage(order: {
   return `Gracias por realizar el pedido:\n\n${productTable}\n\nValor total: "${formatCOP(order.total)}". Puedes pagar desde las siguientes cuentas:\n\nBancolombia:\nNequi: 3002539848\nLlave: 3002539848`;
 }
 
-export function AdminPage({ onLogout }: { onLogout: () => void }) {
+export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; onOpenCatalog: () => void }) {
   const [section, setSection] = useState("inventory");
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -104,6 +104,9 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
             {label}
           </button>
         ))}
+        <button onClick={onOpenCatalog} className="mt-2 border-t border-white/10 p-2 pt-4 text-left">
+          Catálogo
+        </button>
         <button onClick={() => setShowLogoutConfirmation(true)} className="mt-auto p-2 text-left">
           Salir
         </button>
