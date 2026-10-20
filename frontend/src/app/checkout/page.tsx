@@ -10,18 +10,21 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
   const [address, setAddress] = useState(session?.address ?? '');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isMadeToOrder = cart.items.length > 0 && cart.items.every((item) => item.availabilityType === 'MADE_TO_ORDER');
   const shippingCost = cart.items.length > 0 ? shipping.cost : 0;
   const total = cart.total + shippingCost;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setMessage('');
+    setIsSubmitting(true);
     api.checkout({
       paymentMethod,
       guestCheckout: !session,
       customer: { name, email, address, phone }
-    }).then((result) => onCompleted(result.orderId, result.account)).catch((reason: Error) => setMessage(reason.message));
+    }).then((result) => onCompleted(result.orderId, result.account)).catch((reason: Error) => setMessage(reason.message)).finally(() => setIsSubmitting(false));
   };
 
   return <section className="mx-auto max-w-3xl px-6 py-10">
@@ -39,7 +42,7 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
       </div></fieldset>}
       <div className="mt-6 space-y-2 rounded-lg bg-slate-100 p-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatCOP(cart.total)}</strong></div><div className="flex justify-between"><span>Envío</span><strong>{formatCOP(shippingCost)}</strong></div><div className="flex justify-between border-t border-slate-300 pt-2 text-lg"><span>Total</span><strong>{formatCOP(total)}</strong></div></div>
       {message && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{message}</p>}
-      <button disabled={cart.items.length === 0} className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:bg-slate-300">Realizar pedido</button>
+      <button type="submit" disabled={cart.items.length === 0 || isSubmitting} aria-busy={isSubmitting} className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:bg-slate-300">{isSubmitting ? <><span className="h-5 w-5 animate-spin rounded-full border-4 border-slate-200 border-t-amber-600" aria-hidden="true" /><span>Realizando pedido...</span></> : 'Realizar pedido'}</button>
     </form>
   </section>;
 }
