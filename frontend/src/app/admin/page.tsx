@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, paymentMethodLabel, type Product } from "../../api";
 import { formatCOP } from "../../currency";
 import { ConfirmDialog } from "../../components/confirm-dialog";
+import orderConfig from "@lacasaca/shared/order.json";
 
 const categories = [
   "ALL",
@@ -31,6 +32,7 @@ function variantAttributes(attributes: Record<string, string | boolean>) {
 
 function whatsappOrderMessage(order: {
   total: number;
+  paymentMethod: "CASH_ON_DELIVERY" | "WHATSAPP_TRANSFER";
   items: Array<{
     productName: string;
     attributes: Record<string, string | boolean>;
@@ -44,7 +46,15 @@ function whatsappOrderMessage(order: {
       return `*Producto:* ${item.productName}\n*Atributos:* ${variantAttributes(item.attributes) || "Única"}\n*Método de envío:* ${shippingMethod}`;
     }).join("\n\n");
   const total = formatCOP(order.total).replace(/\u00a0/g, " ");
-  return `Gracias por realizar el pedido:\n\n${productDetails}\n\n*Valor total:* "${total}".\n\nPuedes pagar desde las siguientes cuentas:\n\nBancolombia: 91220828854\nNequi: 3002539848\nLlave: 3002539848`;
+  const hasMadeToOrder = order.items.some((item) => item.availabilityType === "MADE_TO_ORDER");
+  const partialValue = formatCOP(order.total * orderConfig.madeToOrderDepositPercentage / 100).replace(/\u00a0/g, " ");
+  const madeToOrderDetails = hasMadeToOrder
+    ? `\n\n*Valor parcial:* ${partialValue} (${orderConfig.madeToOrderDepositPercentage}% del valor total)`
+    : "";
+  const paymentDetails = order.paymentMethod === "CASH_ON_DELIVERY"
+    ? "\n\n¿Confirmas el pedido?"
+    : "\n\nPuedes pagar desde las siguientes cuentas:\n\nBancolombia: 91220828854\nNequi: 3002539848\nLlave: 3002539848";
+  return `Gracias por realizar el pedido:\n\n${productDetails}\n\n*Valor total:* "${total}".${madeToOrderDetails}${paymentDetails}`;
 }
 
 export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; onOpenCatalog: () => void }) {
@@ -683,6 +693,8 @@ function Orders({ orders, users, reload, fail }: any) {
               <th className="p-4">Teléfono</th>
               <th className="p-4">Fecha de creación</th>
               <th className="p-4">Total</th>
+              <th className="p-4">Método de pago</th>
+              <th className="p-4">Entrega</th>
               <th className="p-4">Estado</th>
               <th className="p-4">Acciones</th>
             </tr>
@@ -706,6 +718,18 @@ function Orders({ orders, users, reload, fail }: any) {
                     : "-"}
                 </td>
                 <td className="p-4">${order.total}</td>
+                <td className="p-4">
+                  {order.paymentMethod === "CASH_ON_DELIVERY"
+                    ? "Contraentrega"
+                    : "Transferencia"}
+                </td>
+                <td className="p-4">
+                  {order.items?.some(
+                    (item) => item.availabilityType === "MADE_TO_ORDER",
+                  )
+                    ? "Sobre pedido"
+                    : "Entrega inmediata"}
+                </td>
                 <td className="p-4">
                   <Status
                     value={order.status}
