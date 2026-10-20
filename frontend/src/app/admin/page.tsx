@@ -20,7 +20,10 @@ function whatsappPhone(phone: string) {
 function variantAttributes(attributes: Record<string, string | boolean>) {
   return Object.entries(attributes)
     .filter(([, value]) => typeof value === "boolean" ? value : value.trim() !== "")
-    .map(([, value]) => typeof value === "boolean" ? "Sí" : value)
+    .map(([key, value]) => {
+      const labels: Record<string, string> = { size: "Talla", version: "Versión", tournament: "Torneo", "long-sleeves": "Manga larga", dorsal: "Dorsal" };
+      return `${labels[key] ?? key}: ${typeof value === "boolean" ? (value ? "Sí" : "No") : value}`;
+    })
     .join(", ");
 }
 
@@ -647,6 +650,7 @@ function VariantForm({ products, saved, setMessage }: any) {
 function Orders({ orders, users, reload, fail }: any) {
   const [form, setForm] = useState<any>(null);
   const [confirm, setConfirm] = useState<(() => Promise<void>) | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   return (
     <>
       <div className="mb-5 flex justify-between">
@@ -674,8 +678,9 @@ function Orders({ orders, users, reload, fail }: any) {
           <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="p-4">ID</th>
+              <th className="p-4">Producto</th>
               <th className="p-4">Cliente</th>
+              <th className="p-4">Dirección</th>
               <th className="p-4">Teléfono</th>
               <th className="p-4">Fecha de creación</th>
               <th className="p-4">Total</th>
@@ -686,10 +691,15 @@ function Orders({ orders, users, reload, fail }: any) {
           <tbody>
             {orders.map((order) => (
               <tr key={order.id} className="border-b last:border-b-0">
-                <td className="p-4">{order.id}</td>
+                <td className="p-4">
+                  {order.items?.length
+                    ? <button type="button" onClick={() => setSelectedOrder(order)} className="text-left font-semibold text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900">{order.items.map((item) => `${item.productName} (${item.quantity})`).join(", ")}</button>
+                    : "-"}
+                </td>
                 <td className="p-4">
                   {order.userName ?? order.email ?? "Invitado"}
                 </td>
+                <td className="p-4">{order.address || "-"}</td>
                 <td className="p-4">{order.customerPhone ?? "-"}</td>
                 <td className="p-4">
                   {order.createdAt
@@ -751,7 +761,38 @@ function Orders({ orders, users, reload, fail }: any) {
           onCancel={() => setConfirm(null)}
         />
       )}
+      {selectedOrder && (
+        <OrderItemsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+      )}
     </>
+  );
+}
+
+function OrderItemsModal({ order, onClose }: { order: any; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="order-items-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 id="order-items-title" className="text-xl font-bold">Productos del pedido</h2>
+            <p className="mt-1 text-sm text-slate-500">{order.userName ?? order.email ?? "Invitado"}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar detalle del pedido" className="rounded px-2 text-2xl leading-none text-slate-500 hover:bg-slate-100">×</button>
+        </div>
+        <div className="divide-y rounded-lg border">
+          {order.items.map((item: any, index: number) => (
+            <div key={`${item.productName}-${index}`} className="grid gap-2 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-5">
+              <div>
+                <p className="font-semibold">{item.productName}</p>
+                <p className="text-sm text-slate-600">{variantAttributes(item.attributes) || "Variante única"}</p>
+              </div>
+              <p className="text-sm text-slate-700"><span className="font-semibold">Cantidad:</span> {item.quantity}</p>
+              <p className="text-sm text-slate-700"><span className="font-semibold">Precio unitario:</span> {formatCOP(Number(item.unitPrice))}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 function OrderForm({ order, users, saved, close, fail }: any) {

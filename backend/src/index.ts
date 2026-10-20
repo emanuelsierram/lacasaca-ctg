@@ -831,12 +831,13 @@ app.get('/api/admin/orders', async (req: Request, res: Response) => {
   const result = await pool.query(`
     SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
       o.total, o.shipping_cost AS "shippingCost", o.customer_phone AS "customerPhone", o.created_at AS "createdAt",
-      u.legacy_id AS "userId", u.name AS "userName", u.email,
+      u.legacy_id AS "userId", u.name AS "userName", u.email, u.address,
       COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'productName', p.name,
         'attributes', v.attributes,
         'availabilityType', p.availability_type,
         'quantity', oi.quantity,
+        'unitPrice', oi.unit_price_snapshot,
         'subtotal', oi.subtotal
       ) ORDER BY oi.created_at)
       FROM order_items oi
