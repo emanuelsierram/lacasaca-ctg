@@ -18,8 +18,10 @@ function whatsappPhone(phone: string) {
 }
 
 function variantAttributes(attributes: Record<string, string | boolean>) {
-  return Object.entries(attributes)
-    .filter(([, value]) => typeof value === "boolean" ? value : value.trim() !== "")
+  const attributeOrder = ["size", "dorsal", "version", "tournament", "long-sleeves"];
+  return [...attributeOrder, ...Object.keys(attributes).filter((key) => !attributeOrder.includes(key))]
+    .map((key) => [key, attributes[key]] as const)
+    .filter(([, value]) => value !== undefined && (typeof value === "boolean" ? true : value.trim() !== ""))
     .map(([key, value]) => {
       const labels: Record<string, string> = { size: "Talla", version: "Versión", tournament: "Torneo", "long-sleeves": "Manga larga", dorsal: "Dorsal" };
       return `${labels[key] ?? key}: ${typeof value === "boolean" ? (value ? "Sí" : "No") : value}`;
@@ -35,17 +37,14 @@ function whatsappOrderMessage(order: {
     availabilityType: "IMMEDIATE" | "MADE_TO_ORDER";
   }>;
 }) {
-  const productTable = [
-    "Producto | Atributos | Método de envío",
-    "--- | --- | ---",
-    ...order.items.map((item) => {
+  const productDetails = order.items.map((item) => {
       const shippingMethod = item.availabilityType === "MADE_TO_ORDER"
         ? "Sobre pedido"
         : "Entrega inmediata";
-      return `${item.productName} | ${variantAttributes(item.attributes) || "Única"} | ${shippingMethod}`;
-    }),
-  ].join("\n");
-  return `Gracias por realizar el pedido:\n\n${productTable}\n\nValor total: "${formatCOP(order.total)}". Puedes pagar desde las siguientes cuentas:\n\nBancolombia:\nNequi: 3002539848\nLlave: 3002539848`;
+      return `*Producto:* ${item.productName}\n*Atributos:* ${variantAttributes(item.attributes) || "Única"}\n*Método de envío:* ${shippingMethod}`;
+    }).join("\n\n");
+  const total = formatCOP(order.total).replace(/\u00a0/g, " ");
+  return `Gracias por realizar el pedido:\n\n${productDetails}\n\n*Valor total:* "${total}".\n\nPuedes pagar desde las siguientes cuentas:\n\nBancolombia: 91220828854\nNequi: 3002539848\nLlave: 3002539848`;
 }
 
 export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; onOpenCatalog: () => void }) {
@@ -732,20 +731,34 @@ function Orders({ orders, users, reload, fail }: any) {
                       href={`https://wa.me/${whatsappPhone(order.customerPhone)}?text=${encodeURIComponent(whatsappOrderMessage(order))}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="mr-3 inline-block font-semibold text-green-700"
+                      aria-label="Contactar por WhatsApp"
+                      title="Contactar por WhatsApp"
+                      className="mr-4 inline-flex min-h-10 min-w-10 items-center justify-center rounded text-green-700 hover:bg-green-50 md:mr-3 md:min-h-0 md:min-w-0 md:rounded-none md:font-semibold"
                     >
-                      WhatsApp
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 11.5a8.4 8.4 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4.1-1.1L3 20l1.1-4.3A8.5 8.5 0 1 1 20 11.5Z" />
+                        <path d="M8.5 8.5c.3-.6.7-.6 1-.1l.8 1.2c.2.3.2.6 0 .9l-.5.6c.6 1.1 1.4 1.9 2.5 2.5l.6-.5c.3-.2.6-.2.9 0l1.2.8c.5.3.5.7-.1 1-.7.4-1.5.5-2.3.1-2.4-1.1-4.4-3.1-5.5-5.5-.4-.8-.3-1.6.1-2.3Z" />
+                      </svg>
+                      <span className="hidden md:inline">WhatsApp</span>
                     </a>
                   )}
                   <button
+                    type="button"
                     onClick={() =>
                       setConfirm(() =>
                         api.deleteAdminOrder(order.id).then(reload),
                       )
                     }
-                    className="text-red-700"
+                    aria-label="Eliminar pedido"
+                    title="Eliminar pedido"
+                    className="inline-flex min-h-10 min-w-10 items-center justify-center rounded text-red-700 hover:bg-red-50 md:min-h-0 md:min-w-0 md:rounded-none"
                   >
-                    Eliminar
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 7h16" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                    <span className="hidden md:inline">Eliminar</span>
                   </button>
                 </td>
               </tr>
