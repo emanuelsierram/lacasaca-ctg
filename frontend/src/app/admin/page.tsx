@@ -181,13 +181,13 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
   const [showVariantForm, setShowVariantForm] = useState(false);
   const [pendingVariant, setPendingVariant] = useState<{
     id: string;
-    isActive: boolean;
+    payload: Record<string, unknown>;
   } | null>(null);
-  const updateVariant = (id: string, payload: any) => {
+  const updateVariant = (id: string, payload: Record<string, unknown>) => {
     const action = () =>
       api.updateAdminVariant(id, payload).then(reload).catch(setMessage);
     if (payload.isActive === undefined) void action();
-    else setPendingVariant({ id, isActive: payload.isActive });
+    else setPendingVariant({ id, payload });
   };
   return (
     <>
@@ -269,56 +269,11 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
         <article key={product.id} className="mb-4 rounded border bg-white p-4">
           <h2 className="font-bold">{product.name}</h2>
           {product.variants.map((variant) => (
-            <div
+            <VariantRow
               key={`${product.id}-${variant.id}`}
-              className="grid gap-3 border-t py-3 sm:grid-cols-4"
-            >
-              <span>
-                <small className="block">
-                  {Object.values(variant.attributes)
-                    .filter(Boolean)
-                    .join(" · ")}
-                </small>
-              </span>
-              <label>
-                Precio
-                <input
-                  type="number"
-                  defaultValue={variant.price}
-                  onBlur={(event) =>
-                    updateVariant(variant.id, {
-                      price: Number(event.target.value),
-                    })
-                  }
-                  className="mt-1 w-full rounded border p-1"
-                />
-              </label>
-              <label>
-                Stock
-                <input
-                  type="number"
-                  defaultValue={variant.stock}
-                  onBlur={(event) =>
-                    updateVariant(variant.id, {
-                      stock: Number(event.target.value),
-                    })
-                  }
-                  className="mt-1 w-full rounded border p-1"
-                />
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={variant.isActive}
-                  onChange={(event) =>
-                    updateVariant(variant.id, {
-                      isActive: event.target.checked,
-                    })
-                  }
-                />{" "}
-                Activa
-              </label>
-            </div>
+              variant={variant}
+              onSave={(payload) => updateVariant(variant.id, payload)}
+            />
           ))}
         </article>
       ))}
@@ -328,16 +283,105 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
           message="¿Confirmas esta acción?"
           onConfirm={() =>
             api
-              .updateAdminVariant(pendingVariant.id, {
-                isActive: pendingVariant.isActive,
-              })
+              .updateAdminVariant(pendingVariant.id, pendingVariant.payload as Parameters<typeof api.updateAdminVariant>[1])
               .then(() => reload().then(() => undefined))
+              .then(() => setPendingVariant(null))
               .catch(setMessage)
           }
           onCancel={() => setPendingVariant(null)}
         />
       )}
     </>
+  );
+}
+
+const attributeOptions: Record<string, Array<string | boolean>> = {
+  size: ["S", "M", "L", "XL", "XXL"],
+  version: ["PLAYER", "FAN"],
+  tournament: ["", "Liga", "Copa", "Champions League", "Copa Libertadores", "Mundial"],
+  "long-sleeves": [false, true],
+};
+
+function VariantRow({ variant, onSave }: { variant: any; onSave: (payload: Record<string, unknown>) => void }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div className="border-t py-3">
+      {!editing ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium">{variant.sku || "Sin SKU"}</p>
+            <small className="block text-slate-600">
+              {Object.entries(variant.attributes)
+                .filter(([, value]) => value !== "" && value !== false)
+                .map(([key, value]) => `${key}: ${typeof value === "boolean" ? "Sí" : value}`)
+                .join(" · ") || "Sin atributos"}
+            </small>
+            <small className="block text-slate-500">
+              Precio: ${variant.price} · Stock: {variant.stock} · {variant.availabilityType === "MADE_TO_ORDER" ? "Sobre pedido" : "Entrega inmediata"} · {variant.isActive ? "Activa" : "Inactiva"}
+            </small>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label={`Editar variante ${variant.sku || ""}`}
+            title="Editar variante"
+            className="rounded p-2 text-slate-700 hover:bg-slate-100"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <VariantEditor variant={variant} onSave={(payload) => { onSave(payload); setEditing(false); }} onCancel={() => setEditing(false)} />
+      )}
+    </div>
+  );
+}
+
+function VariantEditor({ variant, onSave, onCancel }: { variant: any; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({
+    sku: variant.sku ?? "",
+    price: String(variant.price),
+    stock: String(variant.stock),
+    isActive: Boolean(variant.isActive),
+    availabilityType: variant.availabilityType ?? "IMMEDIATE",
+    attributes: { ...variant.attributes },
+  });
+  const setAttribute = (key: string, value: string | boolean) => {
+    setForm((current) => ({ ...current, attributes: { ...current.attributes, [key]: value } }));
+  };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSave({
+      sku: form.sku.trim(),
+      price: Number(form.price),
+      stock: Number(form.stock),
+      isActive: form.isActive,
+      availabilityType: form.availabilityType,
+      attributes: form.attributes,
+    });
+  };
+  const attributes = Object.keys(form.attributes);
+  return (
+    <form onSubmit={submit} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2">
+      <label>SKU<input required value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Tipo de disponibilidad<select value={form.availabilityType} onChange={(event) => setForm({ ...form, availabilityType: event.target.value })} className="mt-1 w-full rounded border p-2"><option value="IMMEDIATE">Entrega inmediata</option><option value="MADE_TO_ORDER">Sobre pedido</option></select></label>
+      <label>Precio<input required min="1" step="1" type="number" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Stock<input required min="0" step="1" type="number" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Activa<select value={String(form.isActive)} onChange={(event) => setForm({ ...form, isActive: event.target.value === "true" })} className="mt-1 w-full rounded border p-2"><option value="true">Sí</option><option value="false">No</option></select></label>
+      <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+        {attributes.map((key) => {
+          const current = form.attributes[key];
+          if (key === "dorsal") {
+            return <label key={key}>Dorsal<input value={String(current ?? "")} onChange={(event) => setAttribute(key, event.target.value)} className="mt-1 w-full rounded border p-2" /></label>;
+          }
+          const options = [...new Set([current, ...(attributeOptions[key] ?? [current])])];
+          return <label key={key}>{key}<select value={String(current)} onChange={(event) => setAttribute(key, typeof current === "boolean" ? event.target.value === "true" : event.target.value)} className="mt-1 w-full rounded border p-2">{options.map((option) => <option key={String(option)} value={String(option)}>{typeof option === "boolean" ? (option ? "Sí" : "No") : String(option) || "Ninguno"}</option>)}</select></label>;
+        })}
+      </div>
+      <div className="flex gap-2 md:col-span-2"><button type="submit" className="rounded bg-slate-900 p-2 text-white">Guardar cambios</button><button type="button" onClick={onCancel} className="rounded border p-2">Cancelar</button></div>
+    </form>
   );
 }
 
