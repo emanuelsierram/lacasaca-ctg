@@ -212,8 +212,9 @@ async function findVariant(variantId: string) {
     price: number;
     stock: number;
     isActive: boolean;
+    availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   }>(
-    `SELECT legacy_id AS id, sku, attributes, price, stock, is_active AS "isActive"
+    `SELECT legacy_id AS id, sku, attributes, price, stock, is_active AS "isActive", availability_type AS "availabilityType"
      FROM variants WHERE legacy_id = $1`,
     [variantId]
   );
@@ -830,12 +831,13 @@ app.get('/api/admin/orders', async (req: Request, res: Response) => {
   const result = await pool.query(`
     SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
       o.total, o.shipping_cost AS "shippingCost", o.customer_phone AS "customerPhone", o.created_at AS "createdAt",
-      u.legacy_id AS "userId", u.name AS "userName", u.email,
+      u.legacy_id AS "userId", u.name AS "userName", u.email, u.address,
       COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'productName', p.name,
         'attributes', v.attributes,
         'availabilityType', p.availability_type,
         'quantity', oi.quantity,
+        'unitPrice', oi.unit_price_snapshot,
         'subtotal', oi.subtotal
       ) ORDER BY oi.created_at)
       FROM order_items oi
@@ -905,7 +907,20 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
     return res.status(403).json({ message: 'Admin access required' });
   }
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { price, stock, isActive } = req.body as { price?: unknown; stock?: unknown; isActive?: unknown };
+  const { sku, attributes, price, stock, isActive, availabilityType } = req.body as {
+    sku?: unknown;
+    attributes?: unknown;
+    price?: unknown;
+    stock?: unknown;
+    isActive?: unknown;
+    availabilityType?: unknown;
+  };
+  if (sku !== undefined && (typeof sku !== 'string' || !sku.trim())) {
+    return res.status(400).json({ message: 'SKU must be a non-empty string' });
+  }
+  if (attributes !== undefined && (!attributes || typeof attributes !== 'object' || Array.isArray(attributes))) {
+    return res.status(400).json({ message: 'Attributes must be an object' });
+  }
   if (price !== undefined && (typeof price !== 'number' || !Number.isFinite(price) || price < 0)) {
     return res.status(400).json({ message: 'Price must be a non-negative number' });
   }
@@ -915,7 +930,10 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
   if (isActive !== undefined && typeof isActive !== 'boolean') {
     return res.status(400).json({ message: 'isActive must be a boolean' });
   }
-  if (price === undefined && stock === undefined && isActive === undefined) {
+  if (availabilityType !== undefined && !['IMMEDIATE', 'MADE_TO_ORDER'].includes(String(availabilityType))) {
+    return res.status(400).json({ message: 'Invalid availability type' });
+  }
+  if (sku === undefined && attributes === undefined && price === undefined && stock === undefined && isActive === undefined && availabilityType === undefined) {
     return res.status(400).json({ message: 'At least one variant field is required' });
   }
 
@@ -945,6 +963,18 @@ app.patch('/api/admin/catalog/variants/:id', async (req: Request, res: Response)
     if (isActive !== undefined) {
       values.push(isActive);
       changes.push(`is_active = $${values.length}`);
+    }
+    if (sku !== undefined) {
+      values.push(String(sku).trim());
+      changes.push(`sku = $${values.length}`);
+    }
+    if (attributes !== undefined) {
+      values.push(JSON.stringify(attributes));
+      changes.push(`attributes = $${values.length}::jsonb`);
+    }
+    if (availabilityType !== undefined) {
+      values.push(String(availabilityType));
+      changes.push(`availability_type = $${values.length}::availability_type`);
     }
     values.push(variantId);
     const updated = await client.query(

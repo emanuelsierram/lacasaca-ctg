@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, paymentMethodLabel, type Product } from "../../api";
 import { formatCOP } from "../../currency";
 import { ConfirmDialog } from "../../components/confirm-dialog";
+import orderConfig from "@lacasaca/shared/order.json";
 
 const categories = [
   "ALL",
@@ -18,34 +19,45 @@ function whatsappPhone(phone: string) {
 }
 
 function variantAttributes(attributes: Record<string, string | boolean>) {
-  return Object.entries(attributes)
-    .filter(([, value]) => typeof value === "boolean" ? value : value.trim() !== "")
-    .map(([, value]) => typeof value === "boolean" ? "Sí" : value)
+  const attributeOrder = ["size", "dorsal", "version", "tournament", "long-sleeves"];
+  return [...attributeOrder, ...Object.keys(attributes).filter((key) => !attributeOrder.includes(key))]
+    .map((key) => [key, attributes[key]] as const)
+    .filter(([, value]) => value !== undefined && (typeof value === "boolean" ? true : value.trim() !== ""))
+    .map(([key, value]) => {
+      const labels: Record<string, string> = { size: "Talla", version: "Versión", tournament: "Torneo", "long-sleeves": "Manga larga", dorsal: "Dorsal" };
+      return `${labels[key] ?? key}: ${typeof value === "boolean" ? (value ? "Sí" : "No") : value}`;
+    })
     .join(", ");
 }
 
 function whatsappOrderMessage(order: {
   total: number;
+  paymentMethod: "CASH_ON_DELIVERY" | "WHATSAPP_TRANSFER";
   items: Array<{
     productName: string;
     attributes: Record<string, string | boolean>;
     availabilityType: "IMMEDIATE" | "MADE_TO_ORDER";
   }>;
 }) {
-  const productTable = [
-    "Producto | Atributos | Método de envío",
-    "--- | --- | ---",
-    ...order.items.map((item) => {
+  const productDetails = order.items.map((item) => {
       const shippingMethod = item.availabilityType === "MADE_TO_ORDER"
         ? "Sobre pedido"
         : "Entrega inmediata";
-      return `${item.productName} | ${variantAttributes(item.attributes) || "Única"} | ${shippingMethod}`;
-    }),
-  ].join("\n");
-  return `Gracias por realizar el pedido:\n\n${productTable}\n\nValor total: "${formatCOP(order.total)}". Puedes pagar desde las siguientes cuentas:\n\nBancolombia:\nNequi: 3002539848\nLlave: 3002539848`;
+      return `*Producto:* ${item.productName}\n*Atributos:* ${variantAttributes(item.attributes) || "Única"}\n*Método de envío:* ${shippingMethod}`;
+    }).join("\n\n");
+  const total = formatCOP(order.total).replace(/\u00a0/g, " ");
+  const hasMadeToOrder = order.items.some((item) => item.availabilityType === "MADE_TO_ORDER");
+  const partialValue = formatCOP(order.total * orderConfig.madeToOrderDepositPercentage / 100).replace(/\u00a0/g, " ");
+  const madeToOrderDetails = hasMadeToOrder
+    ? `\n\n*Valor parcial:* ${partialValue} (${orderConfig.madeToOrderDepositPercentage}% del valor total)`
+    : "";
+  const paymentDetails = order.paymentMethod === "CASH_ON_DELIVERY"
+    ? "\n\n¿Confirmas el pedido?"
+    : "\n\nPuedes pagar desde las siguientes cuentas:\n\nBancolombia: 91220828854\nNequi: 3002539848\nLlave: 3002539848";
+  return `Gracias por realizar el pedido:\n\n${productDetails}\n\n*Valor total:* "${total}".${madeToOrderDetails}${paymentDetails}`;
 }
 
-export function AdminPage({ onLogout }: { onLogout: () => void }) {
+export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; onOpenCatalog: () => void }) {
   const [section, setSection] = useState("inventory");
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -104,6 +116,9 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
             {label}
           </button>
         ))}
+        <button onClick={onOpenCatalog} className="mt-2 border-t border-white/10 p-2 pt-4 text-left">
+          Catálogo
+        </button>
         <button onClick={() => setShowLogoutConfirmation(true)} className="mt-auto p-2 text-left">
           Salir
         </button>
@@ -178,13 +193,13 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
   const [showVariantForm, setShowVariantForm] = useState(false);
   const [pendingVariant, setPendingVariant] = useState<{
     id: string;
-    isActive: boolean;
+    payload: Record<string, unknown>;
   } | null>(null);
-  const updateVariant = (id: string, payload: any) => {
+  const updateVariant = (id: string, payload: Record<string, unknown>) => {
     const action = () =>
       api.updateAdminVariant(id, payload).then(reload).catch(setMessage);
     if (payload.isActive === undefined) void action();
-    else setPendingVariant({ id, isActive: payload.isActive });
+    else setPendingVariant({ id, payload });
   };
   return (
     <>
@@ -266,56 +281,11 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
         <article key={product.id} className="mb-4 rounded border bg-white p-4">
           <h2 className="font-bold">{product.name}</h2>
           {product.variants.map((variant) => (
-            <div
+            <VariantRow
               key={`${product.id}-${variant.id}`}
-              className="grid gap-3 border-t py-3 sm:grid-cols-4"
-            >
-              <span>
-                <small className="block">
-                  {Object.values(variant.attributes)
-                    .filter(Boolean)
-                    .join(" · ")}
-                </small>
-              </span>
-              <label>
-                Precio
-                <input
-                  type="number"
-                  defaultValue={variant.price}
-                  onBlur={(event) =>
-                    updateVariant(variant.id, {
-                      price: Number(event.target.value),
-                    })
-                  }
-                  className="mt-1 w-full rounded border p-1"
-                />
-              </label>
-              <label>
-                Stock
-                <input
-                  type="number"
-                  defaultValue={variant.stock}
-                  onBlur={(event) =>
-                    updateVariant(variant.id, {
-                      stock: Number(event.target.value),
-                    })
-                  }
-                  className="mt-1 w-full rounded border p-1"
-                />
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={variant.isActive}
-                  onChange={(event) =>
-                    updateVariant(variant.id, {
-                      isActive: event.target.checked,
-                    })
-                  }
-                />{" "}
-                Activa
-              </label>
-            </div>
+              variant={variant}
+              onSave={(payload) => updateVariant(variant.id, payload)}
+            />
           ))}
         </article>
       ))}
@@ -325,16 +295,105 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
           message="¿Confirmas esta acción?"
           onConfirm={() =>
             api
-              .updateAdminVariant(pendingVariant.id, {
-                isActive: pendingVariant.isActive,
-              })
+              .updateAdminVariant(pendingVariant.id, pendingVariant.payload as Parameters<typeof api.updateAdminVariant>[1])
               .then(() => reload().then(() => undefined))
+              .then(() => setPendingVariant(null))
               .catch(setMessage)
           }
           onCancel={() => setPendingVariant(null)}
         />
       )}
     </>
+  );
+}
+
+const attributeOptions: Record<string, Array<string | boolean>> = {
+  size: ["S", "M", "L", "XL", "XXL"],
+  version: ["PLAYER", "FAN"],
+  tournament: ["", "Liga", "Copa", "Champions League", "Copa Libertadores", "Mundial"],
+  "long-sleeves": [false, true],
+};
+
+function VariantRow({ variant, onSave }: { variant: any; onSave: (payload: Record<string, unknown>) => void }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div className="border-t py-3">
+      {!editing ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium">{variant.sku || "Sin SKU"}</p>
+            <small className="block text-slate-600">
+              {Object.entries(variant.attributes)
+                .filter(([, value]) => value !== "" && value !== false)
+                .map(([key, value]) => `${key}: ${typeof value === "boolean" ? "Sí" : value}`)
+                .join(" · ") || "Sin atributos"}
+            </small>
+            <small className="block text-slate-500">
+              Precio: ${variant.price} · Stock: {variant.stock} · {variant.availabilityType === "MADE_TO_ORDER" ? "Sobre pedido" : "Entrega inmediata"} · {variant.isActive ? "Activa" : "Inactiva"}
+            </small>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label={`Editar variante ${variant.sku || ""}`}
+            title="Editar variante"
+            className="rounded p-2 text-slate-700 hover:bg-slate-100"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <VariantEditor variant={variant} onSave={(payload) => { onSave(payload); setEditing(false); }} onCancel={() => setEditing(false)} />
+      )}
+    </div>
+  );
+}
+
+function VariantEditor({ variant, onSave, onCancel }: { variant: any; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({
+    sku: variant.sku ?? "",
+    price: String(variant.price),
+    stock: String(variant.stock),
+    isActive: Boolean(variant.isActive),
+    availabilityType: variant.availabilityType ?? "IMMEDIATE",
+    attributes: { ...variant.attributes },
+  });
+  const setAttribute = (key: string, value: string | boolean) => {
+    setForm((current) => ({ ...current, attributes: { ...current.attributes, [key]: value } }));
+  };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSave({
+      sku: form.sku.trim(),
+      price: Number(form.price),
+      stock: Number(form.stock),
+      isActive: form.isActive,
+      availabilityType: form.availabilityType,
+      attributes: form.attributes,
+    });
+  };
+  const attributes = Object.keys(form.attributes);
+  return (
+    <form onSubmit={submit} className="grid gap-3 rounded bg-slate-50 p-3 md:grid-cols-2">
+      <label>SKU<input required value={form.sku} onChange={(event) => setForm({ ...form, sku: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Tipo de disponibilidad<select value={form.availabilityType} onChange={(event) => setForm({ ...form, availabilityType: event.target.value })} className="mt-1 w-full rounded border p-2"><option value="IMMEDIATE">Entrega inmediata</option><option value="MADE_TO_ORDER">Sobre pedido</option></select></label>
+      <label>Precio<input required min="1" step="1" type="number" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Stock<input required min="0" step="1" type="number" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} className="mt-1 w-full rounded border p-2" /></label>
+      <label>Activa<select value={String(form.isActive)} onChange={(event) => setForm({ ...form, isActive: event.target.value === "true" })} className="mt-1 w-full rounded border p-2"><option value="true">Sí</option><option value="false">No</option></select></label>
+      <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+        {attributes.map((key) => {
+          const current = form.attributes[key];
+          if (key === "dorsal") {
+            return <label key={key}>Dorsal<input value={String(current ?? "")} onChange={(event) => setAttribute(key, event.target.value)} className="mt-1 w-full rounded border p-2" /></label>;
+          }
+          const options = [...new Set([current, ...(attributeOptions[key] ?? [current])])];
+          return <label key={key}>{key}<select value={String(current)} onChange={(event) => setAttribute(key, typeof current === "boolean" ? event.target.value === "true" : event.target.value)} className="mt-1 w-full rounded border p-2">{options.map((option) => <option key={String(option)} value={String(option)}>{typeof option === "boolean" ? (option ? "Sí" : "No") : String(option) || "Ninguno"}</option>)}</select></label>;
+        })}
+      </div>
+      <div className="flex gap-2 md:col-span-2"><button type="submit" className="rounded bg-slate-900 p-2 text-white">Guardar cambios</button><button type="button" onClick={onCancel} className="rounded border p-2">Cancelar</button></div>
+    </form>
   );
 }
 
@@ -600,6 +659,7 @@ function VariantForm({ products, saved, setMessage }: any) {
 function Orders({ orders, users, reload, fail }: any) {
   const [form, setForm] = useState<any>(null);
   const [confirm, setConfirm] = useState<(() => Promise<void>) | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   return (
     <>
       <div className="mb-5 flex justify-between">
@@ -627,11 +687,14 @@ function Orders({ orders, users, reload, fail }: any) {
           <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="p-4">ID</th>
+              <th className="p-4">Producto</th>
               <th className="p-4">Cliente</th>
+              <th className="p-4">Dirección</th>
               <th className="p-4">Teléfono</th>
               <th className="p-4">Fecha de creación</th>
               <th className="p-4">Total</th>
+              <th className="p-4">Método de pago</th>
+              <th className="p-4">Entrega</th>
               <th className="p-4">Estado</th>
               <th className="p-4">Acciones</th>
             </tr>
@@ -639,10 +702,15 @@ function Orders({ orders, users, reload, fail }: any) {
           <tbody>
             {orders.map((order) => (
               <tr key={order.id} className="border-b last:border-b-0">
-                <td className="p-4">{order.id}</td>
+                <td className="p-4">
+                  {order.items?.length
+                    ? <button type="button" onClick={() => setSelectedOrder(order)} className="text-left font-semibold text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900">{order.items.map((item) => `${item.productName} (${item.quantity})`).join(", ")}</button>
+                    : "-"}
+                </td>
                 <td className="p-4">
                   {order.userName ?? order.email ?? "Invitado"}
                 </td>
+                <td className="p-4">{order.address || "-"}</td>
                 <td className="p-4">{order.customerPhone ?? "-"}</td>
                 <td className="p-4">
                   {order.createdAt
@@ -650,6 +718,18 @@ function Orders({ orders, users, reload, fail }: any) {
                     : "-"}
                 </td>
                 <td className="p-4">${order.total}</td>
+                <td className="p-4">
+                  {order.paymentMethod === "CASH_ON_DELIVERY"
+                    ? "Contraentrega"
+                    : "Transferencia"}
+                </td>
+                <td className="p-4">
+                  {order.items?.some(
+                    (item) => item.availabilityType === "MADE_TO_ORDER",
+                  )
+                    ? "Sobre pedido"
+                    : "Entrega inmediata"}
+                </td>
                 <td className="p-4">
                   <Status
                     value={order.status}
@@ -675,20 +755,34 @@ function Orders({ orders, users, reload, fail }: any) {
                       href={`https://wa.me/${whatsappPhone(order.customerPhone)}?text=${encodeURIComponent(whatsappOrderMessage(order))}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="mr-3 inline-block font-semibold text-green-700"
+                      aria-label="Contactar por WhatsApp"
+                      title="Contactar por WhatsApp"
+                      className="mr-4 inline-flex min-h-10 min-w-10 items-center justify-center rounded text-green-700 hover:bg-green-50 md:mr-3 md:min-h-0 md:min-w-0 md:rounded-none md:font-semibold"
                     >
-                      WhatsApp
+                      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 11.5a8.4 8.4 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4.1-1.1L3 20l1.1-4.3A8.5 8.5 0 1 1 20 11.5Z" />
+                        <path d="M8.5 8.5c.3-.6.7-.6 1-.1l.8 1.2c.2.3.2.6 0 .9l-.5.6c.6 1.1 1.4 1.9 2.5 2.5l.6-.5c.3-.2.6-.2.9 0l1.2.8c.5.3.5.7-.1 1-.7.4-1.5.5-2.3.1-2.4-1.1-4.4-3.1-5.5-5.5-.4-.8-.3-1.6.1-2.3Z" />
+                      </svg>
+                      <span className="hidden md:inline">WhatsApp</span>
                     </a>
                   )}
                   <button
+                    type="button"
                     onClick={() =>
                       setConfirm(() =>
                         api.deleteAdminOrder(order.id).then(reload),
                       )
                     }
-                    className="text-red-700"
+                    aria-label="Eliminar pedido"
+                    title="Eliminar pedido"
+                    className="inline-flex min-h-10 min-w-10 items-center justify-center rounded text-red-700 hover:bg-red-50 md:min-h-0 md:min-w-0 md:rounded-none"
                   >
-                    Eliminar
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 7h16" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                    <span className="hidden md:inline">Eliminar</span>
                   </button>
                 </td>
               </tr>
@@ -704,7 +798,38 @@ function Orders({ orders, users, reload, fail }: any) {
           onCancel={() => setConfirm(null)}
         />
       )}
+      {selectedOrder && (
+        <OrderItemsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+      )}
     </>
+  );
+}
+
+function OrderItemsModal({ order, onClose }: { order: any; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="order-items-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 id="order-items-title" className="text-xl font-bold">Productos del pedido</h2>
+            <p className="mt-1 text-sm text-slate-500">{order.userName ?? order.email ?? "Invitado"}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar detalle del pedido" className="rounded px-2 text-2xl leading-none text-slate-500 hover:bg-slate-100">×</button>
+        </div>
+        <div className="divide-y rounded-lg border">
+          {order.items.map((item: any, index: number) => (
+            <div key={`${item.productName}-${index}`} className="grid gap-2 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-5">
+              <div>
+                <p className="font-semibold">{item.productName}</p>
+                <p className="text-sm text-slate-600">{variantAttributes(item.attributes) || "Variante única"}</p>
+              </div>
+              <p className="text-sm text-slate-700"><span className="font-semibold">Cantidad:</span> {item.quantity}</p>
+              <p className="text-sm text-slate-700"><span className="font-semibold">Precio unitario:</span> {formatCOP(Number(item.unitPrice))}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 function OrderForm({ order, users, saved, close, fail }: any) {
