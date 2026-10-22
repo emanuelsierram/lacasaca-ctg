@@ -2,6 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { adminCatalogService } from '../src/services/admin.catalog.service';
+import { nextProductLegacyId, slugifyProductName } from '../src/utils/product';
+
+test('product names are converted to normalized slugs', () => {
+  assert.equal(slugifyProductName('FC Barcelona 2008 Iniesta #8'), 'fc-barcelona-2008-iniesta-8');
+  assert.equal(slugifyProductName('Barcelona 2026/27 - Local *'), 'barcelona-2026-27-local');
+});
+
+test('product legacy ids increment from the last padded id', () => {
+  assert.equal(nextProductLegacyId('prod-007'), 'prod-008');
+  assert.equal(nextProductLegacyId('prod-099'), 'prod-100');
+  assert.equal(nextProductLegacyId(undefined), 'prod-001');
+});
 
 test('admin catalog service allows authorized updates and rejects non-admin changes', () => {
   const catalog = [

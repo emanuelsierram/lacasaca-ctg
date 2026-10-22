@@ -3,12 +3,14 @@ import { createHash, randomBytes } from 'node:crypto';
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
+import productCategories from '@lacasaca/shared/categories';
 
 import { initializeDatabase, loadState, pool, saveState } from './config/database';
 import { orderService } from './services/order.service';
 import { passwordResetService } from './services/password-reset.service';
 import { userService, type UserRecord } from './services/user.service';
 import { addDbCartItem, advanceDbOrderStatus, cancelDbAdminOrder, cancelDbOrder, confirmDbPayment, createDbAdminOrder, createDbOrder, createDbPayment, getDbCart, getDbOrder, listDbOrders, listDbPayments, removeDbCartItem, updateDbAdminOrder, updateDbCartItem, updateDbPaymentStatus } from './repositories/postgres.store';
+import { nextProductLegacyId, slugifyProductName } from './utils/product';
 
 dotenv.config();
 
@@ -39,7 +41,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
-const categoryEnum = ['RETROS', 'ACTUALES', 'SELECCIONES', 'FEMENINO', 'NINOS'] as const;
+const categoryEnum = productCategories;
 type Category = (typeof categoryEnum)[number];
 
 type Variant = {
@@ -651,24 +653,61 @@ app.get('/api/admin/catalog/products', async (req: Request, res: Response) => {
 app.post('/api/admin/catalog/products', async (req: Request, res: Response) => {
   const userId = (req.headers['x-user-id'] as string | undefined) ?? null;
   if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
-  const { name, slug, description, category, availabilityType, variants = [] } = req.body as Record<string, any>;
-  if (!name || !slug || !description || !category || !availabilityType || !Array.isArray(variants)) {
-    return res.status(400).json({ message: 'Product name, slug, description, category, availability and variants are required' });
+  const { name, description, category, availabilityType, price, variants = [] } = req.body as Record<string, any>;
+  if (!name || !description || !category || !availabilityType || !Array.isArray(variants)) {
+    return res.status(400).json({ message: 'Product name, description, category, availability and variants are required' });
+  }
+  if (availabilityType === 'MADE_TO_ORDER' && (!Number.isFinite(Number(price)) || Number(price) <= 0)) {
+    return res.status(400).json({ message: 'A valid price is required for made-to-order products' });
   }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const productId = `prod-${Date.now()}`;
-    const product = await client.query<{ id: string }>(
-      `INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type)
-       VALUES ($1, $2, $3, $4, (SELECT id FROM categories WHERE name = $5::product_category), $6::availability_type) RETURNING id`,
-      [productId, slug, name, description, category, availabilityType]
+    await client.query('SELECT pg_advisory_xact_lock($1)', [391846]);
+    const lastProduct = await client.query<{ legacyId: string | null }>(
+      `SELECT legacy_id AS "legacyId"
+      FROM products
+      WHERE legacy_id ~ '^prod-[0-9]+$'
+      ORDER BY (substring(legacy_id from '^prod-([0-9]+)$'))::bigint DESC
+      LIMIT 1`
     );
-    for (const [index, variant] of variants.entries()) {
+    const productId = nextProductLegacyId(lastProduct.rows[0]?.legacyId);
+    const slug = slugifyProductName(String(name).trim());
+    if (!slug) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Product name must contain letters or numbers' });
+    }
+    const product = await client.query<{ id: string }>(
+      `INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type, is_active)
+       VALUES ($1, $2, $3, $4, (SELECT id FROM categories WHERE name = $5::product_category), $6::availability_type, true)
+       RETURNING id`,
+      [productId, slug, String(name).trim(), description, category, availabilityType]
+    );
+    const categoryPrefix = category === 'FEMENINO' ? 'F' : category === 'NINOS' ? 'KID' : '';
+    const autoVariantSequence = availabilityType === 'MADE_TO_ORDER'
+      ? await client.query<{ next: string }>(
+          `SELECT (COALESCE(MAX((substring(legacy_id from '^var-([0-9]+)$'))::bigint), 0) + 1)::text AS next
+           FROM variants`
+        )
+      : null;
+    const variantsToCreate = availabilityType === 'MADE_TO_ORDER'
+      ? [{
+          id: `var-${String(autoVariantSequence?.rows[0]?.next).padStart(3, '0')}`,
+          sku: [slug, categoryPrefix].filter(Boolean).join('-').toUpperCase(),
+          attributes: {},
+          price: Number(price),
+          stock: 99,
+          isActive: true,
+          availabilityType: 'MADE_TO_ORDER'
+        }]
+      : variants;
+    for (const [index, variant] of variantsToCreate.entries()) {
+      const variantId = variant.id ?? `var-${Date.now()}-${index}`;
+      const variantSku = variant.sku?.trim() || slug.toUpperCase();
       await client.query(
         `INSERT INTO variants (legacy_id, product_id, sku, attributes, price, stock, is_active, availability_type)
          VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8::availability_type)`,
-        [variant.id ?? `var-${Date.now()}-${index}`, product.rows[0].id, variant.sku?.trim() || `SKU-${productId}-${index}`, JSON.stringify(variant.attributes ?? {}), Number(variant.price), Number(variant.stock ?? 0), variant.isActive !== false, availabilityType]
+        [variantId, product.rows[0].id, variantSku, JSON.stringify(variant.attributes ?? {}), Number(variant.price), Number(variant.stock ?? 0), variant.isActive !== false, variant.availabilityType ?? availabilityType]
       );
     }
     await client.query('COMMIT');

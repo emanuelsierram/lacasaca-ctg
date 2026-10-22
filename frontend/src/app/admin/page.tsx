@@ -3,14 +3,11 @@ import { api, paymentMethodLabel, type Product } from "../../api";
 import { formatCOP } from "../../currency";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import orderConfig from "@lacasaca/shared/order.json";
+import productCategories from "@lacasaca/shared/categories";
 
 const categories = [
   "ALL",
-  "RETROS",
-  "ACTUALES",
-  "SELECCIONES",
-  "FEMENINO",
-  "NINOS",
+  ...productCategories,
 ];
 
 function whatsappPhone(phone: string) {
@@ -398,26 +395,34 @@ function VariantEditor({ variant, onSave, onCancel }: { variant: any; onSave: (p
 }
 
 function ProductForm({ saved, setMessage }: any) {
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const [form, setForm] = useState<any>({
     name: "",
-    slug: "",
     description: "",
     category: "ACTUALES",
     availabilityType: "IMMEDIATE",
+    price: "",
   });
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    setSaveState("saving");
     api
       .createAdminProduct({
         name: form.name,
-        slug: form.slug,
         description: form.description,
         category: form.category,
         availabilityType: form.availabilityType,
+        ...(form.availabilityType === "MADE_TO_ORDER" ? { price: Number(form.price) } : {}),
         variants: [],
       })
-      .then(saved)
-      .catch((error: Error) => setMessage(error.message));
+      .then(() => {
+        setMessage("Producto guardado con éxito.");
+        saved();
+      })
+      .catch((error: Error) => {
+        setSaveState("error");
+        setMessage(`Error al guardar el producto: ${error.message}`);
+      });
   };
   return (
     <form
@@ -425,21 +430,22 @@ function ProductForm({ saved, setMessage }: any) {
       className="mb-5 grid gap-3 rounded bg-amber-50 p-4 md:grid-cols-2"
     >
       <h2 className="font-bold md:col-span-2">Crear producto</h2>
+      {saveState === "saving" && (
+        <p role="status" className="rounded bg-blue-50 p-3 text-blue-800 md:col-span-2">
+          Guardando producto...
+        </p>
+      )}
+      {saveState === "error" && (
+        <p role="alert" className="rounded bg-red-50 p-3 text-red-800 md:col-span-2">
+          No se pudo guardar el producto. Revisa el mensaje de error y vuelve a intentarlo.
+        </p>
+      )}
       <label>
         Nombre
         <input
           required
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="mt-1 w-full rounded border p-2"
-        />
-      </label>
-      <label>
-        Slug
-        <input
-          required
-          value={form.slug}
-          onChange={(e) => setForm({ ...form, slug: e.target.value })}
           className="mt-1 w-full rounded border p-2"
         />
       </label>
@@ -477,8 +483,25 @@ function ProductForm({ saved, setMessage }: any) {
           <option>MADE_TO_ORDER</option>
         </select>
       </label>
-      <button className="rounded bg-slate-900 p-2 text-white md:col-span-2">
-        Guardar
+      {form.availabilityType === "MADE_TO_ORDER" && (
+        <label>
+          Precio
+          <input
+            required
+            min="1"
+            step="1"
+            type="number"
+            value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value })}
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+      )}
+      <button
+        disabled={saveState === "saving"}
+        className="rounded bg-slate-900 p-2 text-white disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
+      >
+        {saveState === "saving" ? "Guardando..." : "Guardar"}
       </button>
     </form>
   );

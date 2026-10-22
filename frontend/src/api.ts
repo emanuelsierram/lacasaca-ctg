@@ -1,4 +1,6 @@
-export type Category = 'RETROS' | 'ACTUALES' | 'SELECCIONES' | 'FEMENINO' | 'NINOS';
+import productCategories from '@lacasaca/shared/categories';
+
+export type Category = (typeof productCategories)[number];
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
 
 export function paymentMethodLabel(method: PaymentMethod) {
@@ -117,7 +119,7 @@ export const api = {
     if (params.availabilityType && params.availabilityType !== 'ALL') query.set('availabilityType', params.availabilityType);
     return request<{ items: Product[] }>(`/admin/catalog/products?${query}`);
   }
-  ,createAdminProduct(payload: { name: string; slug: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; variants: Array<{ sku?: string; attributes: Record<string, string | boolean>; price: number; stock: number }> }) { return request<{ id: string }>('/admin/catalog/products', { method: 'POST', body: JSON.stringify(payload) }); }
+  ,createAdminProduct(payload: { name: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; price?: number; variants: Array<{ sku?: string; attributes: Record<string, string | boolean>; price: number; stock: number }> }) { return request<{ id: string }>('/admin/catalog/products', { method: 'POST', body: JSON.stringify(payload) }); }
   ,updateAdminProduct(id: string, payload: Partial<{ name: string; slug: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; isActive: boolean }>) { return request<{ id: string }>(`/admin/catalog/products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }
   ,deleteAdminProduct(id: string) { return request<void>(`/admin/catalog/products/${id}`, { method: 'DELETE' }); }
   ,updateAdminVariant(id: string, payload: { sku?: string; attributes?: Record<string, string | boolean>; price?: number; stock?: number; isActive?: boolean; availabilityType?: 'IMMEDIATE' | 'MADE_TO_ORDER' }) { return request<Variant>(`/admin/catalog/variants/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); }

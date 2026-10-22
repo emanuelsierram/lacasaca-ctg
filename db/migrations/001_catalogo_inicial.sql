@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$ BEGIN
-  CREATE TYPE product_category AS ENUM ('RETROS', 'ACTUALES', 'SELECCIONES', 'FEMENINO', 'NINOS');
+  CREATE TYPE product_category AS ENUM ('RETROS', 'ACTUALES', 'SELECCIONES', 'FEMENINO', 'NINOS', 'ESPECIALES');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -219,7 +219,8 @@ VALUES
   ('ACTUALES', 'actuales'),
   ('SELECCIONES', 'selecciones'),
   ('FEMENINO', 'femenino'),
-  ('NINOS', 'ninos');
+  ('NINOS', 'ninos'),
+  ('ESPECIALES', 'especiales');
 
 INSERT INTO products (legacy_id, slug, name, description, category_id, availability_type, is_active)
 SELECT seed.legacy_id, seed.slug, seed.name, 'Camiseta disponible para entrega inmediata.', c.id, 'IMMEDIATE', true
@@ -244,7 +245,9 @@ FROM (VALUES
   ('prod-020', 'bayern-munich-2026-27-away', 'Bayern Munich 2026/27 Luis Diaz #14', 'ACTUALES'),
   ('prod-021', 'colombia-1994', 'Colombia 1994', 'RETROS'),
   ('prod-022', 'real-madrid-2026-27-away', 'Real Madrid 2026/27 Away', 'ACTUALES'),
-  ('prod-024', 'colombia-1998', 'Colombia 1998 Valderrama #10', 'RETROS')
+  ('prod-024', 'colombia-1998', 'Colombia 1998 Valderrama #10', 'RETROS'),
+  ('prod-025', 'argentina-messi-10', 'Argentina Especial Messi #10', 'ESPECIALES')
+
 ) AS seed(legacy_id, slug, name, category)
 JOIN categories c ON c.name = seed.category::product_category;
 
@@ -353,6 +356,11 @@ FROM (VALUES
   ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-back.webp', 3),
   ('prod-023', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Francia/francia-1996/francia-1996-shield.webp', 4),
   ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998.webp', 1),
-  ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998-back.webp', 2)
+  ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998-back.webp', 2),
+  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-messi-10.webp', 1),
+  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-back-messi-10.webp', 2),
+  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-messi-10-2.webp', 3),
+  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-back-messi-10-2.webp', 4)
+
 ) AS seed(product_legacy_id, image_url, sort_order)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
