@@ -11,7 +11,10 @@
       "default": "./categories.json"
     },
     "./order.json": "./order.json",
-    "./pricing": "./pricing.ts",
+    "./pricing": {
+      "types": "./pricing.d.ts",
+      "default": "./pricing.json"
+    },
     "./shipping": "./shipping.json"
   }
 }
