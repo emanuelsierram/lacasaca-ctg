@@ -1,6 +1,5 @@
-export const PRODUCT_CATEGORIES = ['RETROS', 'ACTUALES', 'SELECCIONES', 'FEMENINO', 'NINOS'] as const;
-
-export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+export { PRODUCT_CATEGORIES } from '@lacasaca/shared/categories';
+export type { ProductCategory } from '@lacasaca/shared/categories';
 export type AvailabilityType = 'IMMEDIATE' | 'MADE_TO_ORDER';
 export type OrderStatus = 'PENDIENTE' | 'EN_PREPARACION' | 'ENVIADO' | 'ENTREGADO' | 'CANCELADO';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';

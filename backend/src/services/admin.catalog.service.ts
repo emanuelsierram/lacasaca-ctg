@@ -1,7 +1,9 @@
+import type { ProductCategory } from '@lacasaca/shared/categories';
+
 export type AdminProduct = {
   id: string;
   name: string;
-  category: 'RETROS' | 'ACTUALES' | 'SELECCIONES' | 'FEMENINO' | 'NINOS';
+  category: ProductCategory;
   isActive: boolean;
   variants: Array<{
     id: string;

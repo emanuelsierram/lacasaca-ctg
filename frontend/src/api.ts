@@ -1,4 +1,4 @@
-export type Category = 'RETROS' | 'ACTUALES' | 'SELECCIONES' | 'FEMENINO' | 'NINOS';
+export type { ProductCategory as Category } from '@lacasaca/shared/categories';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
 
 export function paymentMethodLabel(method: PaymentMethod) {

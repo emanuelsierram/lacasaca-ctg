@@ -6,7 +6,7 @@ export type CatalogQuery = {
 type ProductSummary = {
   id: string;
   name: string;
-  category: 'RETROS' | 'ACTUALES' | 'SELECCIONES' | 'FEMENINO' | 'NINOS';
+  category: ProductCategory;
   availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER';
   isActive: boolean;
   variants: Array<{
@@ -65,3 +65,4 @@ export const catalogService = {
     return { items, total: items.length };
   }
 };
+import type { ProductCategory } from '@lacasaca/shared/categories';

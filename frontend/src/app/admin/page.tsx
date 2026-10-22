@@ -3,14 +3,11 @@ import { api, paymentMethodLabel, type Product } from "../../api";
 import { formatCOP } from "../../currency";
 import { ConfirmDialog } from "../../components/confirm-dialog";
 import orderConfig from "@lacasaca/shared/order.json";
+import { PRODUCT_CATEGORIES } from "@lacasaca/shared/categories";
 
 const categories = [
   "ALL",
-  "RETROS",
-  "ACTUALES",
-  "SELECCIONES",
-  "FEMENINO",
-  "NINOS",
+  ...PRODUCT_CATEGORIES,
 ];
 
 function whatsappPhone(phone: string) {
