@@ -231,7 +231,7 @@ export function ProductDetailPage({
       </button>
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="grid gap-8 p-6 md:grid-cols-2 md:p-8">
-          <div>
+          <div className="min-w-0">
             <div
               className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50"
               role={currentImage ? "button" : undefined}
@@ -280,14 +280,14 @@ export function ProductDetailPage({
               )}
             </div>
             {images.length > 1 && (
-              <div className="mt-3 flex gap-2 overflow-x-auto">
+              <div className="mt-3 grid grid-cols-4 gap-2 sm:flex sm:overflow-x-auto">
                 {images.map((image, index) => (
                   <button
                     key={image}
                     type="button"
                     aria-label={`Ver imagen ${index + 1}`}
                     onClick={() => setSelectedImage(index)}
-                    className={`h-20 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-slate-50 p-1 ${selectedImage === index ? "border-slate-900" : "border-transparent"}`}
+                    className={`h-20 w-full shrink-0 overflow-hidden rounded-lg border-2 bg-slate-50 p-1 sm:w-16 ${selectedImage === index ? "border-slate-900" : "border-transparent"}`}
                   >
                     <img src={image} alt="" className="h-full w-full object-contain" />
                   </button>
@@ -295,7 +295,7 @@ export function ProductDetailPage({
               </div>
             )}
           </div>
-          <div className="flex flex-col justify-center">
+          <div className="flex min-w-0 flex-col justify-center">
             <div className="mb-4 flex items-center gap-3">
               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-amber-800">
                 {product.category}

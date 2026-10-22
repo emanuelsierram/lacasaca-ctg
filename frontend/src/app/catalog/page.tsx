@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { api, type Product } from '../../api';
 import { formatCOP } from '../../currency';
+import productCategories from '@lacasaca/shared/categories';
 
-const categories = ['ALL', 'ACTUALES', 'RETROS', 'SELECCIONES', 'FEMENINO', 'NINOS'] as const;
+const categories = ['ALL', ...productCategories] as const;
 const deliveryOptions = ['ALL', 'IMMEDIATE', 'MADE_TO_ORDER'] as const;
 const catalogCacheKey = 'lacasaca-catalog-cache';
 const catalogCacheTtl = 5 * 60 * 1000;

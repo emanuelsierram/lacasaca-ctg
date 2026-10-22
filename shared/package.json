@@ -3,5 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "main": "shipping.json",
-  "types": "shipping.d.ts"
+  "types": "shipping.d.ts",
+  "exports": {
+    ".": "./shipping.json",
+    "./categories": {
+      "types": "./categories.d.ts",
+      "default": "./categories.json"
+    },
+    "./order.json": "./order.json",
+    "./pricing": "./pricing.ts",
+    "./shipping": "./shipping.json"
+  }
 }

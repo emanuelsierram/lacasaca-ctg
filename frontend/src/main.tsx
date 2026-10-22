@@ -63,7 +63,7 @@ const App = () => {
   };
 
   if (route === 'admin') {
-    return <main className="min-h-screen bg-slate-100 text-slate-900"><AdminPage onLogout={logout} /></main>;
+    return <main className="min-h-screen bg-slate-100 text-slate-900"><AdminPage onLogout={logout} onOpenCatalog={() => navigate('catalog')} /></main>;
   }
 
   if (route === 'auth') {
