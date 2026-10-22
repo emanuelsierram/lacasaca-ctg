@@ -1,4 +1,6 @@
-export type { ProductCategory as Category } from '@lacasaca/shared/categories';
+import productCategories from '@lacasaca/shared/categories';
+
+export type Category = (typeof productCategories)[number];
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
 
 export function paymentMethodLabel(method: PaymentMethod) {

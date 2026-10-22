@@ -65,4 +65,4 @@ export const catalogService = {
     return { items, total: items.length };
   }
 };
-import type { ProductCategory } from '@lacasaca/shared/categories';
+import type { ProductCategory } from '../models/domain-types';

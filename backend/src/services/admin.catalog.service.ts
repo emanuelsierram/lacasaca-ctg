@@ -1,4 +1,4 @@
-import type { ProductCategory } from '@lacasaca/shared/categories';
+import type { ProductCategory } from '../models/domain-types';
 
 export type AdminProduct = {
   id: string;

@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
-import { PRODUCT_CATEGORIES, type ProductCategory } from '@lacasaca/shared/categories';
+import productCategories from '@lacasaca/shared/categories';
 
 import { initializeDatabase, loadState, pool, saveState } from './config/database';
 import { orderService } from './services/order.service';
@@ -41,8 +41,8 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
-const categoryEnum = PRODUCT_CATEGORIES;
-type Category = ProductCategory;
+const categoryEnum = productCategories;
+type Category = (typeof categoryEnum)[number];
 
 type Variant = {
   id: string;

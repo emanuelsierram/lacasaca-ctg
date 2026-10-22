@@ -1,5 +1,7 @@
-export { PRODUCT_CATEGORIES } from '@lacasaca/shared/categories';
-export type { ProductCategory } from '@lacasaca/shared/categories';
+import productCategories from '@lacasaca/shared/categories';
+
+export const PRODUCT_CATEGORIES = productCategories;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 export type AvailabilityType = 'IMMEDIATE' | 'MADE_TO_ORDER';
 export type OrderStatus = 'PENDIENTE' | 'EN_PREPARACION' | 'ENVIADO' | 'ENTREGADO' | 'CANCELADO';
 export type PaymentMethod = 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER';
