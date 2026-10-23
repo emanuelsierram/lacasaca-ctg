@@ -18,6 +18,8 @@ body {
 }
 
 .catalog-mobile-search { display: block; }
+.catalog-category-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.catalog-category-scroll::-webkit-scrollbar { display: none; }
 @media (min-width: 768px) { .catalog-mobile-search { display: none; } }
 
 .home-page { background: #f7f5f0; color: #13231f; }
