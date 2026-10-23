@@ -21,6 +21,50 @@ body {
 .catalog-category-scroll { scrollbar-width: none; -ms-overflow-style: none; }
 .catalog-category-scroll::-webkit-scrollbar { display: none; }
 @media (min-width: 768px) { .catalog-mobile-search { display: none; } }
+@media (max-width: 767px) {
+  .sticky {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .75rem;
+  }
+  .sticky > .flex {
+    display: contents;
+  }
+  .sticky > .flex > .catalog-category-scroll {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .sticky > .flex > label:not(.catalog-mobile-search) {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    width: 2.75rem;
+    min-width: 0;
+  }
+  .sticky > .flex > label:not(.catalog-mobile-search) svg {
+    pointer-events: none;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+  }
+  .sticky > .flex > label:not(.catalog-mobile-search) select {
+    appearance: none;
+    color: transparent;
+    min-width: 0;
+    max-width: 100%;
+    width: 2.75rem;
+  }
+  .sticky > .flex > label:not(.catalog-mobile-search) select option { color: #334155; }
+  .sticky > .catalog-mobile-search {
+    grid-column: 1;
+    grid-row: 1;
+    margin-top: 0;
+    min-width: 0;
+  }
+}
 
 .home-page { background: #f7f5f0; color: #13231f; }
 .home-hero { min-height: 680px; position: relative; display: grid; place-items: center; overflow: hidden; color: #fff; }
