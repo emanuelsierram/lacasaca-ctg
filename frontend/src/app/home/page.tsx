@@ -23,7 +23,7 @@ function ProductStrip({ products, onOpenProduct, twoPerRow = false }: { products
   const [start, setStart] = useState(0);
   const carouselProducts = products.slice(0, 10);
   const visibleProducts = Array.from({ length: Math.min(4, carouselProducts.length) }, (_, index) => carouselProducts[(start + index) % carouselProducts.length]);
-  const canMove = carouselProducts.length > 4;
+  const canMove = carouselProducts.length > 1;
 
   return (
     <div className="home-product-carousel">
