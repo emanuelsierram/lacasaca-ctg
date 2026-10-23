@@ -358,9 +358,6 @@ FROM (VALUES
   ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998.webp', 1),
   ('prod-024', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Retros/Selecciones/Colombia/colombia-1998/colombia-1998-back.webp', 2),
   ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-messi-10.webp', 1),
-  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-back-messi-10.webp', 2),
-  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-messi-10-2.webp', 3),
-  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-back-messi-10-2.webp', 4)
-
+  ('prod-025', 'https://aegyhqfzatbtsjafnhei.supabase.co/storage/v1/object/public/product-images/Especiales/argentina-messi-10/argentina-back-messi-10.webp', 2)
 ) AS seed(product_legacy_id, image_url, sort_order)
 JOIN products p ON p.legacy_id = seed.product_legacy_id;
