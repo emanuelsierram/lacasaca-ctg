@@ -13,6 +13,7 @@ import { OrdersPage } from './app/orders/page';
 import { OrderSuccessPage } from './app/order-success/page';
 import { ProfilePage } from './app/profile/page';
 import { ConfirmDialog } from './components/confirm-dialog';
+import { LegalPage } from './app/legal/page';
 import { api, type Cart, type Session } from './api';
 import './styles.css';
 
@@ -94,6 +95,9 @@ const App = () => {
       {session?.mustChangePassword && <button onClick={() => navigate('change-password')} className="w-full bg-amber-100 px-6 py-3 text-left text-sm font-semibold text-amber-950 underline">Crea tu contraseña para acceder fácilmente a tus pedidos.</button>}
       {route === 'home' && <HomePage onOpenProduct={(id) => navigate(`product/${id}`)} onOpenCatalog={() => navigate('catalog')} />}
       {route === 'about' && <AboutPage onOpenCatalog={() => navigate('catalog')} />}
+      {route === 'privacy' && <LegalPage kind="privacy" />}
+      {route === 'terms' && <LegalPage kind="terms" />}
+      {route === 'refunds' && <LegalPage kind="refunds" />}
       {route === 'catalog' && <CatalogPage search={search} onSearch={setSearch} onOpenProduct={(id) => navigate(`product/${id}`)} />}
       {route.startsWith('product/') && <ProductDetailPage productId={route.split('/')[1]} onCartChange={refreshCart} onCheckout={() => navigate('checkout')} onBack={() => navigate('catalog')} />}
       {route === 'cart' && <CartView cart={cart} onChange={refreshCart} onCheckout={() => navigate('checkout')} />}
@@ -114,7 +118,24 @@ const App = () => {
       {route === 'orders' && <OrdersPage />}
       {route.startsWith('order-success/') && <OrderSuccessPage orderId={route.split('/')[1]} onOrders={() => navigate('orders')} />}
       {route.startsWith('order/') && <OrdersPage selectedId={route.split('/')[1]} />}
-      {route !== 'auth' && <footer className="site-footer"><div><strong>Lacasaca Cartagena</strong><p>La camiseta que cuenta tu pasión.</p></div><div className="site-footer-links"><a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Instagram</a><a href="https://www.facebook.com/" target="_blank" rel="noreferrer">Facebook</a><a href="https://api.whatsapp.com/send?phone=573246108197" target="_blank" rel="noreferrer">WhatsApp</a><a href="#about">Sobre nosotros</a></div><small>© 2026 Lacasaca Cartagena</small></footer>}
+      {route !== 'auth' && <footer className="site-footer">
+        <div className="site-footer-meta">
+          <div className="site-footer-social" aria-label="Redes sociales">
+          <a href="https://www.instagram.com/lacasaca_ctg/" target="_blank" rel="noreferrer" aria-label="Instagram" title="Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" className="social-icon-fill" /></svg>
+          </a>
+          <a href="https://api.whatsapp.com/send?phone=573246108197" target="_blank" rel="noreferrer" aria-label="WhatsApp" title="WhatsApp">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.8 8.8 0 0 0-7.6 13.2L3 21l4.9-1.3A8.8 8.8 0 1 0 12 3Z" /><path d="M9.3 8.2c.2-.3.4-.3.7-.3h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.6.7c.5 1 1.2 1.7 2.2 2.2l.7-.6c.2-.2.4-.2.6-.1l1.7.7c.3.1.4.3.4.5v.5c0 .3-.1.5-.3.7-.3.3-.8.5-1.3.5-1 0-2.6-.8-3.8-2s-2-2.8-2-3.8c0-.7.3-1.3.8-1.7Z" className="social-icon-fill" /></svg>
+          </a>
+          <a href="https://www.facebook.com/" target="_blank" rel="noreferrer" aria-label="Facebook" title="Facebook">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.5-4 4.1V10H8v3h2.4v8h3.1Z" /></svg>
+          </a>
+          </div>
+          <small>© 2026 Lacasaca Cartagena</small>
+        </div>
+        <div className="site-footer-brand"><strong>Lacasaca Cartagena</strong><p>La camiseta que cuenta tu pasión.</p></div>
+        <div className="site-footer-links"><button type="button" onClick={() => navigate('about')}>Sobre nosotros</button><button type="button" onClick={() => navigate('privacy')}>Política de privacidad</button><button type="button" onClick={() => navigate('terms')}>Términos del servicio</button><button type="button" onClick={() => navigate('refunds')}>Política de reembolsos</button></div>
+      </footer>}
     </main>
   );
 };
