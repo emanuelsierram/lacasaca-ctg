@@ -26,6 +26,10 @@ npm run dev
 Antes de iniciar el backend, configura PostgreSQL. Copia `backend/.env.example` como
 `backend/.env` y ajusta `PGPASSWORD` o `DATABASE_URL` con las credenciales de tu servidor.
 La base `lacasaca` debe existir en PostgreSQL; el backend crea la tabla `app_state` al iniciar.
+Para enviar notificaciones de nuevos pedidos, configura `RESEND_API_KEY` y
+`RESEND_ORDER_FROM_EMAIL` con el correo autorizado en Resend.
+Los destinatarios se cargan una vez al iniciar el backend desde los usuarios activos
+con rol `ADMIN` y se reutilizan para todos los pedidos.
 
 Frontend:
 

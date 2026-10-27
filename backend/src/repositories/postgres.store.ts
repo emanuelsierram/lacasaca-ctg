@@ -273,6 +273,54 @@ export async function getDbOrder(orderLegacyId: string, userLegacyId: string) {
   return { ...order.rows[0], total: Number(order.rows[0].total), shippingCost: Number(order.rows[0].shippingCost), subtotal: Number(order.rows[0].total) - Number(order.rows[0].shippingCost), items: items.rows.map((item) => ({ ...item, unitPriceSnapshot: Number(item.unitPriceSnapshot), subtotal: Number(item.subtotal) })) };
 }
 
+export async function getDbOrderForNotification(orderLegacyId: string) {
+  const order = await pool.query(
+    `SELECT o.legacy_id AS id, o.status, o.payment_method AS "paymentMethod", o.payment_status AS "paymentStatus",
+       o.total, o.shipping_cost AS "shippingCost", o.customer_phone AS phone, o.created_at AS "createdAt",
+       COALESCE(u.name, 'Cliente invitado') AS name, COALESCE(u.email, '') AS email, COALESCE(u.address, '') AS address
+     FROM orders o LEFT JOIN users u ON u.id = o.user_id
+     WHERE o.legacy_id = $1`,
+    [orderLegacyId]
+  );
+  if (!order.rowCount) return null;
+  const items = await pool.query(
+    `SELECT p.name AS "productName", oi.attributes, oi.quantity,
+       oi.unit_price_snapshot AS "unitPrice", oi.subtotal
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id JOIN products p ON p.id = oi.product_id
+     WHERE o.legacy_id = $1 ORDER BY oi.created_at`,
+    [orderLegacyId]
+  );
+  const record = order.rows[0];
+  return {
+    id: record.id,
+    status: record.status,
+    paymentMethod: record.paymentMethod,
+    paymentStatus: record.paymentStatus,
+    total: Number(record.total),
+    shippingCost: Number(record.shippingCost),
+    subtotal: Number(record.total) - Number(record.shippingCost),
+    createdAt: record.createdAt,
+    customer: { name: record.name, email: record.email, phone: record.phone ?? 'No registrado', address: record.address },
+    items: items.rows.map((item) => ({
+      productName: item.productName,
+      attributes: item.attributes ?? {},
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      subtotal: Number(item.subtotal)
+    }))
+  };
+}
+
+export async function listActiveAdminEmails() {
+  const result = await pool.query<{ email: string }>(
+    `SELECT email
+     FROM users
+     WHERE role = 'ADMIN' AND is_active = true
+     ORDER BY created_at`
+  );
+  return result.rows.map((row) => row.email.trim()).filter(Boolean);
+}
+
 export async function cancelDbOrder(orderLegacyId: string, userLegacyId: string) {
   const client = await pool.connect();
   try {

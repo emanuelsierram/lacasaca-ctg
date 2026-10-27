@@ -36,7 +36,7 @@ export function OrdersPage({ selectedId }: { selectedId?: string }) {
     api
       .cancelOrder(id)
       .then(() => {
-        setMessage("Pedido cancelado e inventario reintegrado.");
+        setMessage("Pedido cancelado.");
         return api.listOrders();
       })
       .then((result) => setOrders(result.items))
