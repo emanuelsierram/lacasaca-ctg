@@ -20,6 +20,7 @@ export function AuthPage({
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [resetCooldown, setResetCooldown] = useState(0);
+  const [isResetSubmitting, setIsResetSubmitting] = useState(false);
 
   useEffect(() => {
     const resetToken = new URLSearchParams(window.location.search).get("resetToken");
@@ -42,7 +43,8 @@ export function AuthPage({
     event.preventDefault();
     setMessage("");
     if (mode === "reset-request") {
-      if (resetCooldown > 0) return;
+      if (resetCooldown > 0 || isResetSubmitting) return;
+      setIsResetSubmitting(true);
       api
         .requestPasswordReset(email)
         .then((result) => {
@@ -52,7 +54,8 @@ export function AuthPage({
         .catch((reason: Error & { retryAfterSeconds?: number }) => {
           setMessage(reason.message);
           if (reason.retryAfterSeconds) setResetCooldown(reason.retryAfterSeconds);
-        });
+        })
+        .finally(() => setIsResetSubmitting(false));
       return;
     }
     if (mode === "reset-confirm") {
@@ -207,10 +210,19 @@ export function AuthPage({
           )}
           <button
             type="submit"
-            disabled={mode === "reset-request" && resetCooldown > 0}
+            disabled={mode === "reset-request" && (resetCooldown > 0 || isResetSubmitting)}
+            aria-busy={mode === "reset-request" && isResetSubmitting}
             className="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white"
           >
-            {mode === "reset-request"
+            {mode === "reset-request" && isResetSubmitting ? (
+              <>
+                <span
+                  className="mr-3 inline-block h-5 w-5 animate-spin rounded-full border-4 border-slate-200 border-t-amber-600 align-middle"
+                  aria-hidden="true"
+                />
+                Enviando instrucciones...
+              </>
+            ) : mode === "reset-request"
               ? resetCooldown > 0
                 ? `Reenviar en ${Math.floor(resetCooldown / 60)}:${String(resetCooldown % 60).padStart(2, "0")}`
                 : "Enviar instrucciones"

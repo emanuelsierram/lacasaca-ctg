@@ -8,8 +8,9 @@ import productCategories from '@lacasaca/shared/categories';
 import { initializeDatabase, loadState, pool, saveState } from './config/database';
 import { orderService } from './services/order.service';
 import { passwordResetService } from './services/password-reset.service';
+import { orderNotificationService } from './services/order-notification.service';
 import { userService, type UserRecord } from './services/user.service';
-import { addDbCartItem, advanceDbOrderStatus, cancelDbAdminOrder, cancelDbOrder, confirmDbPayment, createDbAdminOrder, createDbOrder, createDbPayment, getDbCart, getDbOrder, listDbOrders, listDbPayments, removeDbCartItem, updateDbAdminOrder, updateDbCartItem, updateDbPaymentStatus } from './repositories/postgres.store';
+import { addDbCartItem, advanceDbOrderStatus, cancelDbAdminOrder, cancelDbOrder, confirmDbPayment, createDbAdminOrder, createDbOrder, createDbPayment, getDbCart, getDbOrder, getDbOrderForNotification, listActiveAdminEmails, listDbOrders, listDbPayments, removeDbCartItem, updateDbAdminOrder, updateDbCartItem, updateDbPaymentStatus } from './repositories/postgres.store';
 import { nextProductLegacyId, slugifyProductName } from './utils/product';
 
 dotenv.config();
@@ -104,6 +105,21 @@ const users: UserRecord[] = [];
 const adminUsers = new Set(['admin-1']);
 
 const persistState = () => saveState({ carts, orders, users });
+
+async function notifyNewOrder(orderId: string) {
+  try {
+    const order = await getDbOrderForNotification(orderId);
+    if (!order) {
+      throw new Error(`Order ${orderId} was not found for notification`);
+    }
+    await orderNotificationService.sendNewOrderEmail(order);
+  } catch (error) {
+    console.error('Unable to send new order notification', {
+      orderId,
+      reason: error instanceof Error ? error.message : 'Unknown notification error'
+    });
+  }
+}
 
 async function syncUsersToDatabase() {
   for (const user of users) {
@@ -374,6 +390,7 @@ app.post('/api/checkout', async (req: Request, res: Response) => {
   try {
     await updateUserAddress(userId as string, parsed.data.customer.address);
     const result = await createDbOrder(cartId, parsed.data.paymentMethod, userId, parsed.data.customer.phone ?? null);
+    await notifyNewOrder(result.orderId);
     return res.status(201).json({ ...result, account: createdGuestAccount ? { ...createdGuestAccount, mustChangePassword: true } : undefined });
   } catch (error) {
     return res.status(422).json({ message: error instanceof Error ? error.message : 'Unable to create order' });
@@ -892,7 +909,11 @@ app.post('/api/admin/orders', async (req: Request, res: Response) => {
   if (!(await isAdmin(userId))) return res.status(403).json({ message: 'Admin access required' });
   const { userLegacyId, customerPhone, notes, total, paymentMethod, items = [] } = req.body as { userLegacyId?: string; customerPhone?: string; notes?: string; total?: number; paymentMethod?: 'CASH_ON_DELIVERY' | 'WHATSAPP_TRANSFER'; items?: Array<{ variantId: string; quantity: number }> };
   if (!paymentMethod || !Array.isArray(items)) return res.status(400).json({ message: 'Payment method and items are required' });
-  try { return res.status(201).json(await createDbAdminOrder({ userLegacyId, customerPhone, notes, total, paymentMethod, items })); }
+  try {
+    const result = await createDbAdminOrder({ userLegacyId, customerPhone, notes, total, paymentMethod, items });
+    await notifyNewOrder(result.orderId);
+    return res.status(201).json(result);
+  }
   catch (error) { return res.status(400).json({ message: error instanceof Error ? error.message : 'Unable to create order' }); }
 });
 
@@ -1082,6 +1103,9 @@ export async function initializeApp() {
   if (state.orders.length > 0) orders.splice(0, orders.length, ...state.orders);
   if (state.users.length > 0) users.splice(0, users.length, ...state.users);
   await syncUsersToDatabase();
+  const adminEmails = await listActiveAdminEmails();
+  orderNotificationService.setAdminRecipients(adminEmails);
+  console.log(`Loaded ${adminEmails.length} active admin recipient(s) for order notifications`);
 }
 
 export { app };
