@@ -162,6 +162,7 @@ export function ProductDetailPage({
       ),
     ),
   ];
+  const hasTournamentOption = tournamentOptions.some(Boolean);
   const selectedVariant = isMadeToOrder
     ? variants.find((variant) => variant.id === selectedVariantId)
     : sizeVariants.find(
@@ -464,7 +465,7 @@ export function ProductDetailPage({
                     </div>
                   </>
                 )}
-                {tournamentOptions.length > 1 && (
+                {hasTournamentOption && (
                   <>
                     <p className="mt-5 text-sm font-medium">Torneo</p>
                     <div className="mt-3 flex flex-wrap gap-3">
