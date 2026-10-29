@@ -61,18 +61,43 @@ export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; o
   const [orders, setOrders] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [message, setMessage] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     category: "ALL",
     availabilityType: "ALL",
   });
+  const fail = (error: Error) => setMessage(error.message);
   const load = {
     products: () =>
       api.adminProducts(filters).then((r) => setProducts(r.items)),
-    orders: () => api.adminOrders().then((r) => setOrders(r.items)),
-    payments: () => api.adminPayments().then((r) => setPayments(r.items)),
-    users: () => api.adminUsers().then((r) => setUsers(r.items)),
+    orders: () => {
+      setLoadingOrders(true);
+      return api
+        .adminOrders()
+        .then((r) => setOrders(r.items))
+        .catch(fail)
+        .finally(() => setLoadingOrders(false));
+    },
+    payments: () => {
+      setLoadingPayments(true);
+      return api
+        .adminPayments()
+        .then((r) => setPayments(r.items))
+        .catch(fail)
+        .finally(() => setLoadingPayments(false));
+    },
+    users: () => {
+      setLoadingUsers(true);
+      return api
+        .adminUsers()
+        .then((r) => setUsers(r.items))
+        .catch(fail)
+        .finally(() => setLoadingUsers(false));
+    },
   };
   useEffect(() => {
     if (section === "inventory") void load.products();
@@ -84,7 +109,10 @@ export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; o
     }
   }, [section]);
   useEffect(() => {
-    if (section === "payments") void load.payments();
+    if (section === "payments") {
+      void load.payments();
+      void load.orders();
+    }
   }, [section]);
   useEffect(() => {
     if (section === "users") void load.users();
@@ -94,7 +122,6 @@ export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; o
     const timer = window.setTimeout(() => setMessage(""), 3000);
     return () => window.clearTimeout(timer);
   }, [message]);
-  const fail = (error: Error) => setMessage(error.message);
   return (
     <section className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex w-full flex-col bg-[#0c1715] p-4 text-white md:sticky md:top-0 md:h-screen md:w-60">
@@ -137,13 +164,25 @@ export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; o
             users={users}
             reload={load.orders}
             fail={fail}
+            isLoading={loadingOrders}
           />
         )}
         {section === "payments" && (
-          <Payments payments={payments} reload={load.payments} fail={fail} />
+          <Payments
+            payments={payments}
+            orders={orders}
+            reload={load.payments}
+            fail={fail}
+            isLoading={loadingPayments || loadingOrders}
+          />
         )}
         {section === "users" && (
-          <Users users={users} reload={load.users} setMessage={setMessage} />
+          <Users
+            users={users}
+            reload={load.users}
+            setMessage={setMessage}
+            isLoading={loadingUsers}
+          />
         )}
       </main>
       {showLogoutConfirmation && (
@@ -182,6 +221,22 @@ function Status({ value, options, title, onConfirm }: any) {
         ))}
       </select>
     </>
+  );
+}
+
+function TableLoader({ label }: { label: string }) {
+  return (
+    <div
+      className="flex min-h-40 items-center justify-center gap-3 p-6 text-slate-600"
+      role="status"
+      aria-live="polite"
+    >
+      <span
+        className="h-6 w-6 animate-spin rounded-full border-4 border-slate-200 border-t-amber-600"
+        aria-hidden="true"
+      />
+      <span>Cargando {label}...</span>
+    </div>
   );
 }
 
@@ -679,7 +734,7 @@ function VariantForm({ products, saved, setMessage }: any) {
   );
 }
 
-function Orders({ orders, users, reload, fail }: any) {
+function Orders({ orders, users, reload, fail, isLoading }: any) {
   const [form, setForm] = useState<any>(null);
   const [confirm, setConfirm] = useState<(() => Promise<void>) | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -707,6 +762,7 @@ function Orders({ orders, users, reload, fail }: any) {
         />
       )}
       <div className="overflow-x-auto rounded border bg-white">
+        {isLoading ? <TableLoader label="pedidos" /> : (
           <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -811,7 +867,8 @@ function Orders({ orders, users, reload, fail }: any) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </div>
       {confirm && (
         <ConfirmDialog
@@ -964,12 +1021,14 @@ function OrderForm({ order, users, saved, close, fail }: any) {
   );
 };
 
-function Payments({ payments, reload, fail }: any) {
+function Payments({ payments, orders, reload, fail, isLoading }: any) {
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   return (
     <>
       <h1 className="mb-5 text-3xl font-bold">Pagos</h1>
       <div className="overflow-x-auto rounded border bg-white">
-        <table className="w-full min-w-[460px] text-left text-sm">
+        {isLoading ? <TableLoader label="pagos" /> : (
+          <table className="w-full min-w-[460px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="p-4">Cliente</th>
@@ -983,7 +1042,28 @@ function Payments({ payments, reload, fail }: any) {
             {payments.map((payment: any) => (
               <tr key={payment.id} className="border-b last:border-b-0">
                 <td className="p-4">{payment.userName ?? payment.email ?? "Invitado"}</td>
-                <td className="p-4">{payment.orderId}</td>
+                <td className="p-4">
+                  {orders.find((order: any) => order.id === payment.orderId) ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedOrder(
+                          orders.find((order: any) => order.id === payment.orderId),
+                        )
+                      }
+                      className="text-left font-semibold text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
+                    >
+                      {orders
+                        .find((order: any) => order.id === payment.orderId)
+                        .items?.map(
+                          (item: any) => `${item.productName} (${item.quantity})`,
+                        )
+                        .join(", ") || payment.orderId}
+                    </button>
+                  ) : (
+                    payment.orderId
+                  )}
+                </td>
                 <td className="p-4">
                   {payment.createdAt
                     ? new Date(payment.createdAt).toLocaleString("es-CO")
@@ -1012,12 +1092,19 @@ function Payments({ payments, reload, fail }: any) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </div>
+      {selectedOrder && (
+        <OrderItemsModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
     </>
   );
 }
-function Users({ users, reload, setMessage }: any) {
+function Users({ users, reload, setMessage, isLoading }: any) {
   const [showForm, setShowForm] = useState(false);
   return (
     <>
@@ -1041,7 +1128,8 @@ function Users({ users, reload, setMessage }: any) {
         />
       )}
       <div className="overflow-x-auto rounded border bg-white">
-        <table className="w-full min-w-[700px] text-left text-sm">
+        {isLoading ? <TableLoader label="usuarios" /> : (
+          <table className="w-full min-w-[700px] text-left text-sm">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="p-4">Nombre</th>
@@ -1064,7 +1152,8 @@ function Users({ users, reload, setMessage }: any) {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </div>
     </>
   );
