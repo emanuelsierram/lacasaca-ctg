@@ -112,11 +112,12 @@ export const api = {
   listOrders() { return request<{ items: Array<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string }> }>('/orders/me'); },
   getOrder(id: string) { return request<{ id: string; status: string; paymentMethod: PaymentMethod; paymentStatus: string; subtotal: number; shippingCost: number; total: number; createdAt: string; items: Array<{ productName: string; quantity: number; unitPriceSnapshot: number; subtotal: number }> }>(`/orders/${id}`); },
   cancelOrder(id: string) { return request<{ orderId: string; status: string }>('/orders/' + id + '/cancel', { method: 'POST' }); }
-  ,adminProducts(params: { search?: string; category?: string; availabilityType?: string } = {}) {
+  ,adminProducts(params: { search?: string; category?: string; availabilityType?: string; stockStatus?: string } = {}) {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.category && params.category !== 'ALL') query.set('category', params.category);
     if (params.availabilityType && params.availabilityType !== 'ALL') query.set('availabilityType', params.availabilityType);
+    if (params.stockStatus && params.stockStatus !== 'ALL') query.set('stockStatus', params.stockStatus);
     return request<{ items: Product[] }>(`/admin/catalog/products?${query}`);
   }
   ,createAdminProduct(payload: { name: string; description: string; category: Category; availabilityType: 'IMMEDIATE' | 'MADE_TO_ORDER'; price?: number; variants: Array<{ sku?: string; attributes: Record<string, string | boolean>; price: number; stock: number }> }) { return request<{ id: string }>('/admin/catalog/products', { method: 'POST', body: JSON.stringify(payload) }); }

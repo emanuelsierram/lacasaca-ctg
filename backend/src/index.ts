@@ -164,7 +164,7 @@ async function listCatalogFromDatabase() {
   return result.rows;
 }
 
-async function listAdminCatalogFromDatabase(category?: string, availabilityType?: string, search = '') {
+async function listAdminCatalogFromDatabase(category?: string, availabilityType?: string, search = '', stockStatus?: string) {
   const result = await pool.query(`
     SELECT p.legacy_id AS id, p.name, p.slug, p.description, c.name AS category,
       p.availability_type AS "availabilityType", p.is_active AS "isActive",
@@ -172,14 +172,22 @@ async function listAdminCatalogFromDatabase(category?: string, availabilityType?
         FROM product_images pi WHERE pi.product_id = p.id AND pi.is_active = true), '[]'::jsonb) AS images,
       COALESCE(jsonb_agg(jsonb_build_object('id', v.legacy_id, 'sku', v.sku, 'attributes', v.attributes,
         'price', v.price, 'stock', v.stock, 'isActive', v.is_active, 'availabilityType', v.availability_type)
-        ORDER BY v.created_at) FILTER (WHERE v.legacy_id IS NOT NULL), '[]'::jsonb) AS variants
-    FROM products p JOIN categories c ON c.id = p.category_id
-    LEFT JOIN variants v ON v.product_id = p.id
-    WHERE ($1::text IS NULL OR c.name::text = $1)
-      AND ($2::text IS NULL OR p.availability_type::text = $2)
-      AND ($3 = '' OR lower(p.name) LIKE '%' || lower($3) || '%')
-    GROUP BY p.id, c.name ORDER BY p.created_at DESC
-  `, [category ?? null, availabilityType ?? null, search]);
+      ORDER BY v.created_at) FILTER (
+        WHERE v.legacy_id IS NOT NULL
+          AND ($4::text IS NULL OR ($4 = 'OUT_OF_STOCK' AND v.stock <= 0) OR ($4 = 'IN_STOCK' AND v.stock > 0))
+      ), '[]'::jsonb) AS variants
+  FROM products p JOIN categories c ON c.id = p.category_id
+  LEFT JOIN variants v ON v.product_id = p.id
+  WHERE ($1::text IS NULL OR c.name::text = $1)
+    AND ($2::text IS NULL OR p.availability_type::text = $2)
+    AND ($3 = '' OR lower(p.name) LIKE '%' || lower($3) || '%')
+    AND ($4::text IS NULL OR (($4 = 'OUT_OF_STOCK' OR $4 = 'IN_STOCK') AND EXISTS (
+      SELECT 1 FROM variants v_filter
+      WHERE v_filter.product_id = p.id
+        AND (($4 = 'OUT_OF_STOCK' AND v_filter.stock <= 0) OR ($4 = 'IN_STOCK' AND v_filter.stock > 0))
+    )))
+  GROUP BY p.id, c.name ORDER BY p.created_at DESC
+  `, [category ?? null, availabilityType ?? null, search, stockStatus ?? null]);
   return result.rows;
 }
 
@@ -664,7 +672,10 @@ app.get('/api/admin/catalog/products', async (req: Request, res: Response) => {
   const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' ? req.query.category.toUpperCase() : undefined;
   const availabilityType = typeof req.query.availabilityType === 'string' && req.query.availabilityType !== 'ALL' ? req.query.availabilityType.toUpperCase() : undefined;
   const search = typeof req.query.search === 'string' ? req.query.search : '';
-  return res.json({ items: await listAdminCatalogFromDatabase(category, availabilityType, search) });
+  const stockStatus = typeof req.query.stockStatus === 'string' && ['OUT_OF_STOCK', 'IN_STOCK'].includes(req.query.stockStatus.toUpperCase())
+    ? req.query.stockStatus.toUpperCase()
+    : undefined;
+  return res.json({ items: await listAdminCatalogFromDatabase(category, availabilityType, search, stockStatus) });
 });
 
 app.post('/api/admin/catalog/products', async (req: Request, res: Response) => {
