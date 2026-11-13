@@ -69,6 +69,7 @@ export function AdminPage({ onLogout, onOpenCatalog }: { onLogout: () => void; o
     search: "",
     category: "ALL",
     availabilityType: "ALL",
+    stockStatus: "ALL",
   });
   const fail = (error: Error) => setMessage(error.message);
   const load = {
@@ -291,7 +292,7 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
           setMessage={setMessage}
         />
       )}
-      <div className="mb-5 grid gap-3 md:grid-cols-3">
+      <div className="mb-5 grid gap-3 md:grid-cols-4">
         <label>
           Buscar
           <input
@@ -326,6 +327,20 @@ function Inventory({ products, reload, setMessage, filters, setFilters }: any) {
             <option>ALL</option>
             <option>IMMEDIATE</option>
             <option>MADE_TO_ORDER</option>
+          </select>
+        </label>
+        <label>
+          Stock
+          <select
+            value={filters.stockStatus}
+            onChange={(e) =>
+              setFilters({ ...filters, stockStatus: e.target.value })
+            }
+            className="mt-1 w-full rounded border p-2"
+          >
+            <option>ALL</option>
+            <option value="OUT_OF_STOCK">Sin stock</option>
+            <option value="IN_STOCK">Con stock</option>
           </select>
         </label>
       </div>
