@@ -7,6 +7,7 @@ export function ConfirmDialog({
   onCancel,
   confirmLabel = "Confirmar",
   busyLabel = "Procesando...",
+  showCancel = true,
 }: {
   title: string;
   message: string;
@@ -14,6 +15,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   confirmLabel?: string;
   busyLabel?: string;
+  showCancel?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -39,20 +41,22 @@ export function ConfirmDialog({
           {title}
         </h2>
         <p className="mt-2 text-slate-600">{message}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-            className="rounded-lg border border-slate-300 px-4 py-2"
-          >
-            Cancelar
-          </button>
+        <div className={`mt-5 flex gap-2 ${showCancel ? "justify-end" : "justify-stretch"}`}>
+          {showCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={busy}
+              className="rounded-lg border border-slate-300 px-4 py-2"
+            >
+              Cancelar
+            </button>
+          )}
           <button
             type="button"
             onClick={confirm}
             disabled={busy}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-white"
+            className={`rounded-lg bg-slate-900 px-4 py-2 text-white ${showCancel ? "" : "w-full"}`}
           >
             {busy ? busyLabel : confirmLabel}
           </button>
