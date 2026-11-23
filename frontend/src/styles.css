@@ -13,6 +13,31 @@ body {
   background: #f7f5f0;
 }
 
+.cart-pulse {
+  animation: cart-pulse .65s ease-out;
+  transform-origin: center;
+}
+
+.product-mobile-image {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgba(0, 0, 0, .98) 78%, rgba(0, 0, 0, .75) 88%, rgba(0, 0, 0, .25) 96%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 68%, rgba(0, 0, 0, .98) 78%, rgba(0, 0, 0, .75) 88%, rgba(0, 0, 0, .25) 96%, transparent 100%);
+}
+
+@media (min-width: 768px) {
+  .product-mobile-image {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+@keyframes cart-pulse {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.35) rotate(-8deg); }
+  50% { transform: scale(.9) rotate(8deg); }
+  75% { transform: scale(1.25) rotate(-4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
 * {
   box-sizing: border-box;
 }

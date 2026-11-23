@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api, type Cart, type PaymentMethod, type Session } from '../../api';
 import { formatCOP } from '../../currency';
 import shipping from '@lacasaca/shared';
+import { ConfirmDialog } from '../../components/confirm-dialog';
 
 export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; session: Session | null; onCompleted: (id: string, account?: Session) => void }) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('WHATSAPP_TRANSFER');
@@ -9,7 +10,7 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
   const [email, setEmail] = useState(session?.email ?? '');
   const [address, setAddress] = useState(session?.address ?? '');
   const [phone, setPhone] = useState('');
-  const [message, setMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMadeToOrder = cart.items.length > 0 && cart.items.every((item) => item.availabilityType === 'MADE_TO_ORDER');
   const shippingCost = cart.items.length > 0 ? shipping.cost : 0;
@@ -18,16 +19,15 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (isSubmitting) return;
-    setMessage('');
     setIsSubmitting(true);
     api.checkout({
       paymentMethod,
       guestCheckout: !session,
       customer: { name, email, address, phone }
-    }).then((result) => onCompleted(result.orderId, result.account)).catch((reason: Error) => setMessage(reason.message)).finally(() => setIsSubmitting(false));
+    }).then((result) => onCompleted(result.orderId, result.account)).catch((reason: Error) => setErrorMessage(reason.message)).finally(() => setIsSubmitting(false));
   };
 
-  return <section className="mx-auto max-w-3xl px-6 py-10">
+  return <><section className="mx-auto max-w-3xl px-6 py-10">
     <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
     <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -41,8 +41,7 @@ export function CheckoutView({ cart, session, onCompleted }: { cart: Cart; sessi
         <label className={`rounded-lg border p-3 ${paymentMethod === 'CASH_ON_DELIVERY' ? 'border-slate-900' : 'border-slate-200'}`}><input type="radio" name="payment" checked={paymentMethod === 'CASH_ON_DELIVERY'} onChange={() => setPaymentMethod('CASH_ON_DELIVERY')} /> <span className="ml-2">Efectivo contraentrega</span><span className="mt-1 block text-xs text-slate-500">Paga el valor total al recibir el producto.</span></label>
       </div></fieldset>}
       <div className="mt-6 space-y-2 rounded-lg bg-slate-100 p-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatCOP(cart.total)}</strong></div><div className="flex justify-between"><span>Envío</span><strong>{formatCOP(shippingCost)}</strong></div><div className="flex justify-between border-t border-slate-300 pt-2 text-lg"><span>Total</span><strong>{formatCOP(total)}</strong></div></div>
-      {message && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{message}</p>}
       <button type="submit" disabled={cart.items.length === 0 || isSubmitting} aria-busy={isSubmitting} className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:bg-slate-300">{isSubmitting ? <><span className="h-5 w-5 animate-spin rounded-full border-4 border-slate-200 border-t-amber-600" aria-hidden="true" /><span>Realizando pedido...</span></> : 'Realizar pedido'}</button>
     </form>
-  </section>;
+  </section>{errorMessage && <ConfirmDialog title="Stock insuficiente" message={errorMessage} confirmLabel="Entendido" showCancel={false} onConfirm={() => setErrorMessage('')} onCancel={() => setErrorMessage('')} />}</>;
 }

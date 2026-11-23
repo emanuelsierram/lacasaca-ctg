@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, type Product } from "../../api";
 import { madeToOrderPrice } from "../../pricing";
 import { formatCOP } from "../../currency";
+import { ConfirmDialog } from "../../components/confirm-dialog";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
 const tournaments = [
@@ -32,11 +33,13 @@ const emptyMadeToOrder: MadeToOrderAttributes = {
 export function ProductDetailPage({
   productId,
   onCartChange,
+  onCartAdded,
   onCheckout,
   onBack,
 }: {
   productId: string;
   onCartChange: () => Promise<void>;
+  onCartAdded: () => void;
   onCheckout: () => void;
   onBack: () => void;
 }) {
@@ -50,7 +53,9 @@ export function ProductDetailPage({
   const [selectedImage, setSelectedImage] = useState(0);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const images = product?.images ?? [];
   useEffect(() => {
@@ -218,23 +223,24 @@ export function ProductDetailPage({
           onCheckout();
           return;
         }
+        onCartAdded();
         setMessage("Producto agregado al carrito.");
       })
-      .catch((reason: Error) => setMessage(reason.message));
+      .catch((reason: Error) => setErrorMessage(reason.message));
   };
   return (
-    <section className="mx-auto max-w-6xl px-6 py-10">
+    <section className="mx-auto max-w-6xl px-0 py-6 pb-0 sm:px-6 sm:py-10 md:pb-10">
       <button
         onClick={onBack}
-        className="mb-4 text-sm font-semibold text-slate-600"
+        className="mb-4 px-4 text-sm font-semibold text-slate-600 sm:px-0"
       >
         ← Volver al catálogo
       </button>
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-8 p-6 md:grid-cols-2 md:p-8">
+      <div className="overflow-hidden border-y border-slate-200 bg-white shadow-sm sm:rounded-3xl sm:border">
+        <div className="grid gap-0 md:grid-cols-2 md:gap-8 md:p-8">
           <div className="min-w-0">
             <div
-              className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50"
+              className="relative mb-[-2.5rem] flex aspect-square w-full items-center justify-center overflow-hidden bg-white md:mb-0 md:rounded-2xl md:bg-slate-50"
               role={currentImage ? "button" : undefined}
               tabIndex={currentImage ? 0 : undefined}
               aria-label={currentImage ? "Ampliar imagen del producto" : undefined}
@@ -250,7 +256,7 @@ export function ProductDetailPage({
                 <img
                   src={currentImage}
                   alt={`${product.name} vista ${selectedImage + 1}`}
-                  className="block h-full w-full cursor-zoom-in object-contain"
+                  className="product-mobile-image block h-full w-full cursor-zoom-in object-contain md:mask-none"
                 />
               )}
               {images.length > 1 && (
@@ -279,9 +285,25 @@ export function ProductDetailPage({
                   </button>
                 </>
               )}
+              <button
+                type="button"
+                disabled={!available}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  addToCart();
+                }}
+                aria-label="Agregar al carrito"
+                className="absolute right-3 top-3 grid h-11 w-11 place-items-center rounded-full bg-white text-slate-900 shadow-lg disabled:cursor-not-allowed disabled:text-slate-300"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 4h2l2.2 11h10.4L20 8H6" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="19" r="1" />
+                  <circle cx="17" cy="19" r="1" />
+                </svg>
+              </button>
             </div>
             {images.length > 1 && (
-              <div className="mt-3 grid grid-cols-4 gap-2 sm:flex sm:overflow-x-auto">
+              <div className="mt-3 hidden grid-cols-4 gap-2 md:grid md:flex md:overflow-x-auto">
                 {images.map((image, index) => (
                   <button
                     key={image}
@@ -296,8 +318,8 @@ export function ProductDetailPage({
               </div>
             )}
           </div>
-          <div className="flex min-w-0 flex-col justify-center">
-            <div className="mb-4 flex items-center gap-3">
+          <div className="relative z-10 flex min-w-0 flex-col justify-center bg-white px-6 pb-5 pt-4 md:mt-0 md:bg-transparent md:px-0 md:py-0">
+            <div className="mb-4 hidden items-center gap-3 md:flex">
               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-amber-800">
                 {product.category}
               </span>
@@ -309,8 +331,25 @@ export function ProductDetailPage({
                 </span>
               )}
             </div>
-            <h1 className="text-3xl font-bold">{product.name}</h1>
-            <p className="mt-3 text-slate-600">{product.description}</p>
+            <h1 className="text-xl font-bold md:text-3xl">{product.name}</h1>
+            <div className="mt-3 flex items-center gap-3 md:hidden">
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-amber-800">
+                {product.category}
+              </span>
+              {!isMadeToOrder && (
+                <span
+                  className={`text-sm font-semibold ${available ? "text-emerald-600" : "text-red-600"}`}
+                >
+                  {available ? "Disponible" : "Agotada"}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 md:hidden">
+              <p className="text-4xl font-bold">{formatCOP(price)}</p>
+            </div>
+            <p className="mt-3 hidden text-slate-600 md:block">
+              {product.description}
+            </p>
             {isMadeToOrder ? (
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium">
@@ -503,20 +542,39 @@ export function ProductDetailPage({
                 )}
               </div>
             )}
-            <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-5">
-              <div>
-                <p className="text-sm text-slate-500">Precio</p>
-                <p className="text-3xl font-bold">{formatCOP(price)}</p>
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:max-w-md">
-                <button
-                  type="button"
-                  disabled={!available}
-                  onClick={() => addToCart()}
-                  className="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            <div className="mt-8 border-t border-slate-200 pt-4 md:hidden">
+              <div className="rounded-xl bg-slate-100 px-4">
+              <button
+                type="button"
+                aria-expanded={isDescriptionOpen}
+                onClick={() => setIsDescriptionOpen((open) => !open)}
+                className="flex w-full items-center justify-between py-4 text-left"
+              >
+                <span className="text-sm font-semibold text-slate-900">Descripción</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className={`h-5 w-5 text-slate-500 transition-transform ${isDescriptionOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  {available ? "Agregar al carrito" : "Selecciona una talla"}
-                </button>
+                  <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {isDescriptionOpen && (
+                <p className="pb-5 text-sm leading-6 text-slate-600">
+                  {product.description}
+                </p>
+              )}
+              </div>
+            </div>
+            <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-slate-200 bg-white px-3 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] md:static md:z-auto md:mt-6 md:flex-col md:border-t md:px-0 md:py-0 md:pt-5 md:shadow-none">
+              <div className="hidden md:block">
+                <p className="text-sm text-slate-500">Precio</p>
+                <p className="mt-1 text-3xl font-bold">{formatCOP(price)}</p>
+              </div>
+              <div className="flex w-full md:max-w-md">
                 <button
                   type="button"
                   disabled={!available}
@@ -622,6 +680,16 @@ export function ProductDetailPage({
             </div>
           </div>
         </div>
+      )}
+      {errorMessage && (
+        <ConfirmDialog
+          title="Stock insuficiente"
+          message={errorMessage}
+          confirmLabel="Entendido"
+          showCancel={false}
+          onConfirm={() => setErrorMessage("")}
+          onCancel={() => setErrorMessage("")}
+        />
       )}
     </section>
   );
