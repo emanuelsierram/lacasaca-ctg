@@ -318,7 +318,7 @@ export function ProductDetailPage({
               </div>
             )}
           </div>
-          <div className="relative z-10 flex min-w-0 flex-col justify-center bg-white px-6 pb-5 pt-4 md:mt-0 md:bg-transparent md:px-0 md:py-0">
+          <div className="relative z-10 flex min-w-0 flex-col justify-center rounded-t-3xl bg-white px-6 pb-5 pt-4 md:mt-0 md:rounded-none md:bg-transparent md:px-0 md:py-0">
             <div className="mb-4 hidden items-center gap-3 md:flex">
               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-amber-800">
                 {product.category}
